@@ -1,0 +1,16 @@
+aa (2) -> bb, bc, bd
+bb (6) -> ce, cf, cg
+bc (3) -> ch, ci, cj
+bd (0) -> ck, cl, cm
+ce (1)
+cf (1)
+cg (1)
+ch (2)
+ci (2)
+cj (1)
+ck (3)
+cl (1) -> do, dp
+cm (2) -> dn
+dn (1)
+do (1)
+dp (1)
