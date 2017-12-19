@@ -32,16 +32,17 @@ class KnotHash(object):
         self.knot = KnotHashList(size)
     
     def digest(self):
+        return ''.join(map(chr, self.bindigest()))
+    
+    def hexdigest(self):
+        return ''.join([hex(x)[2:], self.bindigest()])
+    
+    def bindigest(self):
         for i in range(64):
             self.run_round()
         
         chunks = self.split()
-        dense_chunks = [self.densify(x) for x in chunks]
-        
-        return ''.join((chr(x) for x in dense_chunks))
-    
-    def hexdigest(self):
-        return ''.join((hex(ord(x))[2:] for x in self.digest()))
+        return map(self.densify, chunks)
     
     def run_round(self):
         for length in self.lengths:
