@@ -62,18 +62,17 @@ def run2(size=16, steps=None, rounds=10**9):
     if steps is None:
         steps = tuple(load())
     
-    try:
-        for i in xrange(rounds):
-            if DEBUG and i%1000==0:
-                print 'round {}'.format(i)
-            
-            for step in steps:
-                lineup = step(lineup)
-    except:
-        if DEBUG:
-            import pdb; pdb.post_mortem()
+    old_states = [lineup]
+    
+    for i in xrange(rounds):
+        for step in steps:
+            lineup = step(lineup)
+        
+        if lineup == old_states[0]:
+            print 'found a duplicate! i={} len={}'.format(i, len(old_states))
+            return old_states[rounds%len(old_states)]
         else:
-            raise
+            old_states.append(lineup)
     
     return lineup
 
