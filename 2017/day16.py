@@ -10,40 +10,40 @@ def load(input_filename='day16.input'):
             if DEBUG:
                 print 'loading {}'.format(chunk)
             
-            match = re.match(r's(?P<amount>\d+)', chunk)
-            if match:
-                groupdict = match.groupdict()
-                amount = int(groupdict['amount'])
-                
-                if DEBUG:
-                    print 'matched s: {}'.format(groupdict)
-                
-                yield lambda word: spin(word, amount)
-                continue
-            
-            match = re.match(r'x(?P<pos1>\d+)/(?P<pos2>\d+)', chunk)
-            if match:
-                groupdict = match.groupdict()
-                pos1 = int(groupdict['pos1'])
-                pos2 = int(groupdict['pos2'])
-                
-                if DEBUG:
-                    print 'matched x: {}'.format(groupdict)
-                
-                yield lambda word: exchange(word, pos1, pos2)
-                continue
-            
-            match = re.match(r'p(?P<name1>[a-z])/(?P<name2>[a-z])', chunk)
-            if match:
-                groupdict = match.groupdict()
-                name1 = groupdict['name1']
-                name2 = groupdict['name2']
-                
-                if DEBUG:
-                    print 'matched p: {}'.format(groupdict)
-                
-                yield lambda word: partner(word, name1, name2)
-                continue
+            yield parse_step(chunk)
+
+def parse_step(text):
+    match = re.match(r's(?P<amount>\d+)', text)
+    if match:
+        groupdict = match.groupdict()
+        amount = int(groupdict['amount'])
+        
+        if DEBUG:
+            print 'matched s: {}'.format(groupdict)
+        
+        return lambda word: spin(word, amount)
+    
+    match = re.match(r'x(?P<pos1>\d+)/(?P<pos2>\d+)', text)
+    if match:
+        groupdict = match.groupdict()
+        pos1 = int(groupdict['pos1'])
+        pos2 = int(groupdict['pos2'])
+        
+        if DEBUG:
+            print 'matched x: {}'.format(groupdict)
+        
+        return lambda word: exchange(word, pos1, pos2)
+    
+    match = re.match(r'p(?P<name1>[a-z])/(?P<name2>[a-z])', text)
+    if match:
+        groupdict = match.groupdict()
+        name1 = groupdict['name1']
+        name2 = groupdict['name2']
+        
+        if DEBUG:
+            print 'matched p: {}'.format(groupdict)
+        
+        return lambda word: partner(word, name1, name2)
 
 def run1(size=16, steps=None):
     lineup = get_lineup(size)
