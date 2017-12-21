@@ -3,7 +3,7 @@ from collections import defaultdict
 DEBUG = True
 
 
-class Processor(object):
+class SoundProcessor(object):
     def __init__(self, instructions):
         self.instructions = instructions
         
@@ -65,5 +65,5 @@ def load(input_filename='day18.input'):
     with open(input_filename, 'r') as f:
         return [line.strip().split(' ') for line in f if line.strip()]
 
-def run1():
-    return Processor(load()).run()
+def run():
+    return SoundProcessor(load()).run()
