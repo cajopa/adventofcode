@@ -28,7 +28,7 @@ def run1():
     return max(Recipe(DEFAULT_TOTAL_AMOUNT, list(load())))
 
 def run2():
-    pass
+    return max(Recipe(DEFAULT_TOTAL_AMOUNT, list(load()), required_calories=500))
 
 
 class Ingredient:
@@ -42,17 +42,22 @@ class Ingredient:
 
 
 class Recipe:
-    def __init__(self, total_amount, ingredients):
+    def __init__(self, total_amount, ingredients, required_calories=None):
         self.total_amount = total_amount
         self.ingredients = ingredients
+        self.required_calories = required_calories
     
     def __iter__(self):
         for amounts in self.permute_amounts(self.total_amount, len(self.ingredients)):
-            yield self.score(amounts), amounts
+            if self.required_calories and self.calories(amounts) == self.required_calories:
+                yield self.score(amounts), amounts
     
     def score(self, amounts):
         trait_scores = [max(0, sum((x*y for x,y in zip(amounts, (getattr(z, trait) for z in self.ingredients))))) for trait in ('capacity', 'durability', 'flavor', 'texture')]
         return reduce(lambda x,y: x*y, trait_scores)
+    
+    def calories(self, amounts):
+        return sum((x*y for x,y in zip(amounts, (z.calories for z in self.ingredients))))
     
     @staticmethod
     def permute_amounts(total, count):
