@@ -51,8 +51,8 @@ class Recipe:
             yield self.score(amounts), amounts
     
     def score(self, amounts):
-        trait_scores = [sum((x*y for x,y in zip(amounts, (getattr(x, trait) for x in self.ingredients)))) for trait in ('capacity', 'durability', 'flavor', 'texture')]
-        return max(0, reduce(lambda x,y: x*y, trait_scores))
+        trait_scores = [max(0, sum((x*y for x,y in zip(amounts, (getattr(x, trait) for x in self.ingredients))))) for trait in ('capacity', 'durability', 'flavor', 'texture')]
+        return reduce(lambda x,y: x*y, trait_scores)
     
     @staticmethod
     def permute_amounts(total, count):
