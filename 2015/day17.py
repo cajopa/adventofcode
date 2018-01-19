@@ -1,3 +1,6 @@
+from collections import defaultdict
+
+
 DEBUG = False
 
 DEFAULT_INPUT = 'input/day17'
@@ -15,7 +18,14 @@ def run1():
     return len(list(generate_combinations(containers)))
 
 def run2():
-    pass
+    containers = tuple(load())
+    
+    container_counts = defaultdict(lambda: 0)
+    
+    for container_set in generate_combinations(containers):
+        container_counts[len(container_set)] += 1
+    
+    return container_counts[min(container_counts.keys())]
 
 def generate_combinations(containers, total=TOTAL_VOLUME):
     filtered_containers = tuple(sorted((x for x in containers if x <= total), reverse=True))
