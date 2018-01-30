@@ -28,70 +28,70 @@ def run2():
     pass
 
 
-class Grid:
-    registry = {}
-    
+
+class RGrid:
     def __init__(self, flat_list):
-        self.values = flat_list
-    
-    def __getitem__(self, key):
-        x, y = key
+        self.cells = defaultdict(lambda: None)
         
-        if x < 0 or y < 0 or x >= self.size or y >= self.size:
-            return False
-        else:
-            return self.values[self.size * y + x]
+        size = int(len(flat_list) ** 0.5)
+        value_iter = iter(flat_list)
+        
+        #first pass for filling in values
+        for y in range(size):
+            for x in range(size):
+                self.cells[x, y] = Automaton(next(value_iter), None)
+        
+        #second pass for hooking up neighbors
+        for y in range(size):
+            for x in range(size):
+                self.cells[x,y].neighbors = [self.cells[x+xoff, y+yoff] for xoff, yoff in product([-1, 0, 1], repeat=2) if (xoff,yoff) != (0,0) and self.cells[x, y]]
     
     def __str__(self):
-        return '\n'.join(''.join(self[x, y] and '#' or '.' for x in range(self.size)) for y in range(self.size))
+        return '\n'.join(''.join(self.cells[x, y] and '#' or '.' for x in range(self.size)) for y in range(self.size))
     
     @classmethod
     def from_text(cls, lines):
-        return cls.faux_new([x == '#' for x in chain.from_iterable(lines)])
-    
-    @classmethod
-    def faux_new(cls, flat_list):
-        key = tuple(flat_list)
-        
-        try:
-            return cls.registry[key]
-        except KeyError:
-            to_return = cls(flat_list)
-            cls.registry[key] = to_return
-            return to_return
-    
-    @property
-    def number_on(self):
-        return len([None for x in self.values if x])
-    
-    @cache
-    @property
-    def size(self):
-        return int(len(self.values) ** 0.5)
+        return cls([x == '#' for x in chain.from_iterable(lines)])
     
     def blit(self):
-        def inner():
-            for y in range(self.size):
-                for x in range(self.size):
-                    neighbors = self.count_neighbors(x, y)
-                    yield self[x, y] and self.when_on_rule(neighbors) or self.when_off_rule(neighbors)
+        self.cells[0, 0].blit()
+
+
+class Automaton:
+    def __init__(self, value, neighbors):
+        self.visited = False
         
-        return self.__class__(list(inner()))
+        self.value = value
+        self.neighbors = neighbors
     
-    @cache
-    def count_neighbors(self, x, y):
-        return len([None for xoff,yoff in product([-1, 0, 1], repeat=2) if (xoff,yoff) != (0,0) and self[x+xoff, y+yoff]])
+    def visit(self):
+        'visit neighbors recursively'
+        
+        if not self.visited:
+            for neighbor in self.neighbors:
+                neighbor.visit()
+            
+            self.visited = True
     
-    def when_on_rule(self, neighbors):
-        pass
+    def unvisit(self):
+        'unvisit neighbors recursively'
+        
+        if self.visited:
+            for neighbor in self.neighbors:
+                neighbor.unvisit()
+            
+            self.visited = False
     
-    def when_off_rule(self, neighbors):
-        pass
-
-
-class Day1Grid(Grid):
-    def when_on_rule(self, neighbors):
-        return neighbors in (2, 3)
+    def blit(self):
+        'return new self with determined state and connected to new neighbors'
+        
+        #FIXME: infinite recursion
+        return self.__class__(self.newval, [x.blit() for x in self.neighbors])
     
-    def when_off_rule(self, neighbors):
-        return neighbors == 3
+    @property
+    def newval(self):
+        'determine the new value my successor will take'
+        
+        number_of_live_neighbors = len([None for x in self.neighbors if x.value])
+        
+        return self.value and number_of_live_neighbors in (2,3) or number_of_live_neighbors == 3
