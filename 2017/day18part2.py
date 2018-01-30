@@ -1,99 +1,7 @@
 from collections import defaultdict
 from itertools import count
-from multiprocessing import Process, Pipe, Lock
 
 DEBUG = True
-
-
-class TandemProcessor(object):
-    def __init__(self, instructions, program_id):
-        super(TandemProcessor, self).__init__()
-        
-        self.instructions = instructions
-        
-        self.program_counter = 0
-        self.registers = defaultdict(lambda: 0)
-        
-        self.program_id = program_id
-        self.registers['p'] = program_id
-    
-    def __getitem__(self, key):
-        if key in self.registers:
-            return self.registers[key]
-        else:
-            return int(key)
-    
-    def run(self):
-        while True:
-            instruction = self.instructions[self.program_counter]
-            
-            if DEBUG:
-                print '{}: {} @ {}'.format(self.program_id, instruction, self.program_counter)
-            
-            if instruction[0] == 'snd':
-                pass
-            elif instruction[0] == 'rcv':
-                
-            else:
-                self.do(instruction)
-    
-    ##### ABANDON MULTIPROCESSING!! RUN ONE ITERATOR UNTIL IT YIELDS, THEN RUN THE OTHER
-    
-    @property
-    def receiver(self):
-        def inner():
-            while True:
-                register, value = (yield)
-                self.registers[register] = value
-        
-        return next(inner())
-    
-    @property
-    def transmitter(self):
-        def inner():
-            while True:
-                
-    
-    def do(self, bits):
-        if getattr(self, '_{}'.format(bits[0]))(*bits[1:]) is None:
-            self.program_counter += 1
-    
-    def _snd(self, register):
-        if DEBUG:
-            print '{}: sending {}'.format(self.program_id, self[register])
-        
-        yield self[register]
-    
-    def _set(self, register, value):
-        self.registers[register] = self[value]
-    
-    def _add(self, register, value):
-        self.registers[register] += self[value]
-    
-    def _mul(self, register, value):
-        self.registers[register] *= self[value]
-    
-    def _mod(self, register, other):
-        self.registers[register] %= self[other]
-    
-    def _rcv(self, register):
-        if DEBUG:
-            print '{}: receiving into {}'.format(self.program_id, register)
-        
-        #TODO: deadlock detection
-        
-        self.registers[register] = (yield)
-    
-    def _jgz(self, register, value):
-        if self.registers[register] > 0:
-            self.program_counter += self[value]
-            return self.program_counter
-
-class Deadlocked(Exception):
-    pass
-
-class Waiting(Exception):
-    pass
 
 
 def load(input_filename='day18.input'):
@@ -103,24 +11,123 @@ def load(input_filename='day18.input'):
 def run(instructions=None):
     if not instructions:
         instructions = load()
-    interconn1, interconn2 = Pipe()
-    callhome0, callhome1 = Pipe(False)
-    lock = Lock()
     
-    Process(target=target, args=(instructions, interconn1, None, lock, 0)).start()
-    Process(target=target, args=(instructions, interconn2, callhome1, lock, 1)).start()
+    manager = ProcessorManager(instructions)
+    manager.run()
     
-    for i in count(1):
-        try:
-            if DEBUG:
-                print 'home: {}'.format(i)
-            
-            if callhome0.poll(1):
-                callhome0.recv()
-            else:
-                return i
-        except EOFError:
-            return i
+    processor1_state = manager.current if manager.current.processor.program_id == 1 else manager.other
+    return processor1_state.processor.send_count
 
-def target(instructions, interpipe, homepipe, receive_lock, program_id):
-    return TandemProcessor(instructions, interpipe, homepipe, receive_lock, program_id).run()
+
+class ProcessorManager:
+    def __init__(self, instructions):
+        self.current = ProcessorState(TandemProcessor(instructions, 0))
+        self.other = ProcessorState(TandemProcessor(instructions, 1))
+    
+    def run(self):
+        for i in count(1):
+            self.current.last_value = next(self.current.iterator)
+            
+            if self.current.last_value is TandemProcessor.WAITING:
+                if self.other.last_value is TandemProcessor.WAITING:
+                    return i
+                else:
+                    self.switch()
+            else:
+                self.other.processor.queue(self.current.last_value)
+    
+    def switch(self):
+        self.current, self.other = self.other, self.current
+
+class ProcessorState:
+    def __init__(self, processor):
+        self.processor = processor
+        self.iterator = iter(processor)
+        self.last_value = None
+
+class TandemProcessor:
+    WAITING = object()
+    
+    
+    def __init__(self, instructions, program_id):
+        super(TandemProcessor, self).__init__()
+        
+        self.instructions = instructions
+        
+        self.program_counter = 0
+        self.registers = defaultdict(lambda: 0)
+        self.receive_queue = []
+        self.send_count = 0
+        
+        self.program_id = program_id
+        self.registers['p'] = program_id
+    
+    def __iter__(self):
+        while True:
+            command, *args = self.instructions[self.program_counter]
+            
+            if DEBUG:
+                print('{}: {}({}) @ {}'.format(self.program_id, command, ', '.join(args), self.program_counter))
+            
+            if command == 'snd':
+                yield from self._snd(*args)
+            elif command == 'rcv':
+                yield from self._rcv(*args)
+            else:
+                self.do(command, *args)
+    
+    def register(self, key):
+        if key in self.registers:
+            return self.registers[key]
+        else:
+            return int(key)
+    
+    def do(self, command, *args):
+        if getattr(self, '_{}'.format(command))(*args) is None:
+            self.program_counter += 1
+    
+    def queue(self, value):
+        self.receive_queue.append(value)
+    
+    def _snd(self, register):
+        if DEBUG:
+            print('{}: sending {}'.format(self.program_id, self.register(register)))
+        
+        self.send_count += 1
+        
+        yield self.register(register)
+        
+        self.program_counter += 1
+    
+    def _set(self, register, value):
+        self.registers[register] = self.register(value)
+    
+    def _add(self, register, value):
+        self.registers[register] += self.register(value)
+    
+    def _mul(self, register, value):
+        self.registers[register] *= self.register(value)
+    
+    def _mod(self, register, other):
+        self.registers[register] %= self.register(other)
+    
+    def _rcv(self, register):
+        while True:
+            try:
+                value = self.receive_queue.pop(0)
+            except IndexError:
+                yield self.WAITING
+            else:
+                break
+        
+        if DEBUG:
+            print('{}: receiving {} into {}'.format(self.program_id, value, register))
+        
+        self.registers[register] = value
+        
+        self.program_counter += 1
+    
+    def _jgz(self, register, value):
+        if self.registers[register] > 0:
+            self.program_counter += self.register(value)
+            return self.program_counter
