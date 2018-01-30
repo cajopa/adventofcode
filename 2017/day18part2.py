@@ -6,15 +6,13 @@ DEBUG = True
 
 
 class TandemProcessor(object):
-    def __init__(self, instructions, pipe_to_other, pipe_home, receive_lock, program_id):
+    def __init__(self, instructions, program_id):
         super(TandemProcessor, self).__init__()
         
         self.instructions = instructions
-        self.pipe_to_other = pipe_to_other
-        self.pipe_home = pipe_home
-        self.waiting = receive_lock
         
-        self.reset()
+        self.program_counter = 0
+        self.registers = defaultdict(lambda: 0)
         
         self.program_id = program_id
         self.registers['p'] = program_id
@@ -27,23 +25,34 @@ class TandemProcessor(object):
     
     def run(self):
         while True:
-            try:
-                instruction = self.instructions[self.program_counter]
-                if DEBUG:
-                    print '{}: {} @ {}'.format(self.program_id, instruction, self.program_counter)
+            instruction = self.instructions[self.program_counter]
+            
+            if DEBUG:
+                print '{}: {} @ {}'.format(self.program_id, instruction, self.program_counter)
+            
+            if instruction[0] == 'snd':
+                pass
+            elif instruction[0] == 'rcv':
+                
+            else:
                 self.do(instruction)
-            except Deadlocked:
-                if DEBUG:
-                    print '{}: received deadlock - terminating'.format(self.program_id)
-                
-                if self.pipe_home:
-                    self.pipe_home.close()
-                
-                return
     
-    def reset(self):
-        self.program_counter = 0
-        self.registers = defaultdict(lambda: 0)
+    ##### ABANDON MULTIPROCESSING!! RUN ONE ITERATOR UNTIL IT YIELDS, THEN RUN THE OTHER
+    
+    @property
+    def receiver(self):
+        def inner():
+            while True:
+                register, value = (yield)
+                self.registers[register] = value
+        
+        return next(inner())
+    
+    @property
+    def transmitter(self):
+        def inner():
+            while True:
+                
     
     def do(self, bits):
         if getattr(self, '_{}'.format(bits[0]))(*bits[1:]) is None:
@@ -53,10 +62,7 @@ class TandemProcessor(object):
         if DEBUG:
             print '{}: sending {}'.format(self.program_id, self[register])
         
-        self.pipe_to_other.send(self[register])
-        
-        if self.pipe_home:
-            self.pipe_home.send(True)
+        yield self[register]
     
     def _set(self, register, value):
         self.registers[register] = self[value]
@@ -74,27 +80,9 @@ class TandemProcessor(object):
         if DEBUG:
             print '{}: receiving into {}'.format(self.program_id, register)
         
-        if self.waiting.acquire(block=False):
-            if self.pipe_to_other.poll(5):
-                self.registers[register] = self.pipe_to_other.recv()
-                self.waiting.release()
-            else:
-                if DEBUG:
-                    print '{}: DEADLOCKED'.format(self.program_id)
-                
-                if self.pipe_home:
-                    self.pipe_home.close()
-                raise Deadlocked
-        else:
-            if DEBUG:
-                print '{}: DEADLOCKED'.format(self.program_id)
-            
-            if self.pipe_home:
-                self.pipe_home.close()
-            
-            self.pipe_to_other.close()
-            
-            raise Deadlocked
+        #TODO: deadlock detection
+        
+        self.registers[register] = (yield)
     
     def _jgz(self, register, value):
         if self.registers[register] > 0:
@@ -102,6 +90,9 @@ class TandemProcessor(object):
             return self.program_counter
 
 class Deadlocked(Exception):
+    pass
+
+class Waiting(Exception):
     pass
 
 
