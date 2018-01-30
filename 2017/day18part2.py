@@ -25,15 +25,21 @@ class ProcessorManager:
         self.other = ProcessorState(TandemProcessor(instructions, 1))
     
     def run(self):
-        for i in count(1):
+        maybe_deadlocked = False
+        
+        while True:
             self.current.last_value = next(self.current.iterator)
             
             if self.current.last_value is TandemProcessor.WAITING:
                 if self.other.last_value is TandemProcessor.WAITING:
-                    return i
-                else:
-                    self.switch()
+                    if maybe_deadlocked:
+                        return
+                    else:
+                        maybe_deadlocked = True
+                
+                self.switch()
             else:
+                maybe_deadlocked = False
                 self.other.processor.queue(self.current.last_value)
     
     def switch(self):
@@ -128,6 +134,6 @@ class TandemProcessor:
         self.program_counter += 1
     
     def _jgz(self, register, value):
-        if self.registers[register] > 0:
+        if self.register(register) > 0:
             self.program_counter += self.register(value)
             return self.program_counter
