@@ -4,6 +4,19 @@ from string import ascii_uppercase as LETTERS
 
 
 DEBUG = True
+DEFAULT_INPUT = 'day19.input'
+EXAMPLE_INPUT = 'day19.input.example'
+
+
+def load(cls, input_filename=DEFAULT_INPUT):
+    with open(input_filename, 'r') as f:
+        return cls(f.read())
+
+def run1(input_filename=DEFAULT_INPUT):
+    return ''.join(load(Day1Route, input_filename))
+
+def run2(input_filename=DEFAULT_INPUT):
+    return sum(load(Day2Route, input_filename))
 
 
 class Route:
@@ -48,18 +61,16 @@ class Route:
             new_position, new_value = self.peek()
             
             if new_value in chain(self.VALID_MOVES[self.direction], LETTERS):
-                self.move(new_position)
-                
-                if new_value in LETTERS:
-                    yield new_value
+                yield from self.move(new_position)
             else:
                 new_new_position, new_new_value = self.peek(position=new_position)
                 
                 if new_new_value in chain(self.VALID_MOVES[self.direction], LETTERS):
-                    self.move(new_new_position)
+                    yield from self.move(new_position)
                     
-                    if new_new_value in LETTERS:
-                        yield new_new_value
+                    #NOTE: the following would be potentially much more efficient,
+                    #      and always as correct, but would throw off the number of steps
+                    #yield from self.move(new_new_position)
                 else:
                     break
     
@@ -76,11 +87,18 @@ class Route:
     def move(self, new_position):
         self.position = new_position
         
-        if self.grid.get(self.position) == self.CROSSROAD:
+        new_value = self.grid.get(self.position)
+        
+        if new_value == self.CROSSROAD:
             self.direction = self.whichway()
         
         if DEBUG:
             print('{} {} {}'.format(new_position, self.DIRECTION_NAMES[self.direction], self.grid.get(new_position)))
+        
+        yield from self.post_move()
+    
+    def post_move(self):
+        pass
     
     def whichway(self, position=None):
         position = position or self.position
@@ -99,3 +117,25 @@ class Route:
     @property
     def beginning(self):
         return next(k for k,v in self.grid.items() if k[1] == 0 and v == self.VERTICAL)
+
+
+class Day1Route(Route):
+    def post_move(self):
+        new_value = self.grid.get(self.position)
+        
+        if new_value in LETTERS:
+            yield new_value
+        else:
+            yield ''
+
+
+class Day2Route(Route):
+    def __iter__(self):
+        yield 1
+        
+        yield from super(Day2Route, self).__iter__()
+    
+    def post_move(self):
+        new_value = self.grid.get(self.position)
+        
+        yield 1
