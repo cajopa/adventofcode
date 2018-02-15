@@ -69,15 +69,7 @@ class Grid:
 			yield current
 	
 	def __eq__(self, other):
-		flat_values = self.flat()
-		
-		return (
-			flat_values == other.rotate_clockwise() or
-			flat_values == other.rotate_counterclockwise() or
-			flat_values == other.rotate_halfturn() or
-			flat_values == other.reflect_vertical() or
-			flat_values == other.reflect_horizontal()
-		)
+		return set(self.views) & set(other.views)
 	
 	def __hash__(self):
 		return hash(self._hash_basis)
@@ -92,7 +84,11 @@ class Grid:
 	
 	@property
 	def _hash_basis(self):
-		return tuple(min(self.flat(), self.rotate_clockwise(), self.rotate_counterclockwise(), self.rotate_halfturn(), self.reflect_horizontal(), self.reflect_vertical()))
+		return tuple(min(self.views))
+	
+	@property
+	def views(self):
+		return self.flat(), self.rotate_clockwise(), self.rotate_counterclockwise(), self.rotate_halfturn(), self.reflect_horizontal(), self.reflect_vertical()
 	
 	@classmethod
 	def from_text(cls, text):
@@ -105,22 +101,22 @@ class Grid:
 	######### basic operations #########
 	
 	def flat(self):
-		return [self.values[x,y] for y in range(self.size) for x in range(self.size)]
+		return tuple([self.values[x,y] for y in range(self.size) for x in range(self.size)])
 	
 	def rotate_clockwise(self):
-		return [self.values[x,y] for x in range(self.size) for y in reversed(range(self.size))]
+		return tuple([self.values[x,y] for x in range(self.size) for y in reversed(range(self.size))])
 	
 	def rotate_counterclockwise(self):
-		return [self.values[x,y] for x in reversed(range(self.size)) for y in range(self.size)]
+		return tuple([self.values[x,y] for x in reversed(range(self.size)) for y in range(self.size)])
 	
 	def rotate_halfturn(self):
-		return [self.values[x,y] for y in reversed(range(self.size)) for x in reversed(range(self.size))]
+		return tuple([self.values[x,y] for y in reversed(range(self.size)) for x in reversed(range(self.size))])
 	
 	def reflect_vertical(self):
-		return [self.values[x,y] for y in reversed(range(self.size)) for x in range(self.size)]
+		return tuple([self.values[x,y] for y in reversed(range(self.size)) for x in range(self.size)])
 	
 	def reflect_horizontal(self):
-		return [self.values[x,y] for y in range(self.size) for x in reversed(range(self.size))]
+		return tuple([self.values[x,y] for y in range(self.size) for x in reversed(range(self.size))])
 	
 	######### problem-specific operations ##########
 	
