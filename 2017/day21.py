@@ -25,17 +25,13 @@ def run1(example_mode=False):
 	Grid.ENHANCEMENT_RULES = PatternCollection(load(EXAMPLE_INPUT if example_mode else DEFAULT_INPUT))
 	
 	root_grid = Grid.initial()
-	
-	if DEBUG:
-		print(root_grid, end='\n\n')
-	
 	last_grid = None
 	
 	for i, last_grid in enumerate(root_grid):
 		if DEBUG:
 			print(last_grid, end='\n\n')
 		
-		if i >= (EXAMPLE_ITERATIONS if example_mode else DEFAULT_ITERATIONS):
+		if i == (EXAMPLE_ITERATIONS if example_mode else DEFAULT_ITERATIONS):
 			break
 	
 	return last_grid.count()
@@ -64,9 +60,9 @@ class Grid:
 		current = self
 		
 		while True:
-			current = current.blit()
-			
 			yield current
+			
+			current = current.blit()
 	
 	def __eq__(self, other):
 		return self.views & other.views
