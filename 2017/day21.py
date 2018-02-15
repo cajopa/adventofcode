@@ -69,7 +69,7 @@ class Grid:
 			yield current
 	
 	def __eq__(self, other):
-		return set(self.views) & set(other.views)
+		return self.views & other.views
 	
 	def __hash__(self):
 		return hash(self._hash_basis)
@@ -88,7 +88,7 @@ class Grid:
 	
 	@property
 	def views(self):
-		return self.flat(), self.rotate_clockwise(), self.rotate_counterclockwise(), self.rotate_halfturn(), self.reflect_horizontal(), self.reflect_vertical()
+		return set((self.flat(), self.rotate_clockwise(), self.rotate_counterclockwise(), self.rotate_halfturn(), self.reflect_horizontal(), self.reflect_vertical()))
 	
 	@classmethod
 	def from_text(cls, text):
