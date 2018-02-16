@@ -9,9 +9,6 @@ DEBUG = True
 DEFAULT_INPUT = 'day21.input'
 EXAMPLE_INPUT = 'day21.input.example'
 
-DEFAULT_ITERATIONS = 5
-EXAMPLE_ITERATIONS = 2
-
 
 def load(input_filename=DEFAULT_INPUT):
 	with open(input_filename, 'r') as f:
@@ -21,20 +18,30 @@ def load(input_filename=DEFAULT_INPUT):
 			if match:
 				yield match.groups()
 
-def run1(example_mode=False):
-	Grid.ENHANCEMENT_RULES = PatternCollection(load(EXAMPLE_INPUT if example_mode else DEFAULT_INPUT))
+def run(input_filename, iterations):
+	Grid.ENHANCEMENT_RULES = PatternCollection(load(input_filename))
 	
 	root_grid = Grid.initial()
 	last_grid = None
 	
 	for i, last_grid in enumerate(root_grid):
 		if DEBUG:
+			print(i)
 			print(last_grid, end='\n\n')
 		
-		if i == (EXAMPLE_ITERATIONS if example_mode else DEFAULT_ITERATIONS):
+		if i == iterations:
 			break
 	
 	return last_grid.count()
+
+def run1():
+	return run(DEFAULT_INPUT, 5)
+
+def run2():
+	return run(DEFAULT_INPUT, 18)
+
+def run_example():
+	return run(EXAMPLE_INPUT, 2)
 
 
 class Grid:
