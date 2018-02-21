@@ -1,5 +1,4 @@
 from collections import defaultdict, Mapping
-from copy import deepcopy
 from itertools import product
 import re
 
@@ -44,7 +43,41 @@ def run_example():
 	return run(EXAMPLE_INPUT, 2)
 
 
-class Grid:
+
+class Linear2DArray(Mapping):
+	def __init__(self, width, flat_values):
+		self.width = width
+		
+		self.values = list(flat_values)
+	
+	def __getitem__(self, key):
+		x,y = key
+		
+		try:
+			return self.values[y*self.width + x]
+		except IndexError:
+			return None
+	
+	def __setitem__(self, key, value):
+		x,y = key
+		
+		if x >= self.width:
+			raise KeyError('x is out of bounds')
+		
+		self.values[y*self.width + x] = value
+	
+	def __iter__(self):
+		return iter(self.values)
+	
+	def __len__(self):
+		return len(self.values)
+	
+	def copy(self):
+		return self.__class__(self.width, self.values)
+
+
+###### FIXME: refactor to use Linear2DArray code properly
+class Grid(Linear2DArray):
 	INITIAL_PATTERN = (False, True, False,
 					  False, False, True,
 					  True, True, True)
@@ -55,15 +88,18 @@ class Grid:
 	def __init__(self, flat_values):
 		if isinstance(flat_values, Grid):
 			other = flat_values #just rename for clarity
-			self.size = other.size
-			self.values = deepcopy(other.values)
+			
+			super(Grid, self).__init__(other.width, other.values.copy())
 		else:
 			flat_values = list(flat_values)
 			
-			self.size = int(len(flat_values) ** 0.5)
-			self.values = defaultdict(bool, zip(((x,y) for y in range(self.size) for x in range(self.size)), flat_values))
+			width = int(len(flat_values) ** 0.5)
+			
+			super(Grid, self).__init__(width, flat_values)
 	
 	def __iter__(self):
+		#NOTE: completely changes the meaning
+		
 		current = self
 		
 		while True:
@@ -78,12 +114,9 @@ class Grid:
 		return hash(self._hash_basis)
 	
 	def __str__(self):
-		return '\n'.join(''.join(self.values[x,y] and '#' or '.' for x in range(self.size)) for y in range(self.size))
+		return '\n'.join(''.join(self[x,y] and '#' or '.' for x in range(self.width)) for y in range(self.width))
 	
 	__repr__ = __str__
-	
-	def __getitem__(self, key):
-		return self.values[key]
 	
 	@property
 	def _hash_basis(self):
@@ -104,27 +137,27 @@ class Grid:
 	######### basic operations #########
 	
 	def flat(self):
-		return tuple([self.values[x,y] for y in range(self.size) for x in range(self.size)])
+		return tuple([self[x,y] for y in range(self.width) for x in range(self.width)])
 	
 	def rotate_clockwise(self):
-		return tuple([self.values[x,y] for x in range(self.size) for y in reversed(range(self.size))])
+		return tuple([self[x,y] for x in range(self.width) for y in reversed(range(self.width))])
 	
 	def rotate_counterclockwise(self):
-		return tuple([self.values[x,y] for x in reversed(range(self.size)) for y in range(self.size)])
+		return tuple([self[x,y] for x in reversed(range(self.width)) for y in range(self.width)])
 	
 	def rotate_halfturn(self):
-		return tuple([self.values[x,y] for y in reversed(range(self.size)) for x in reversed(range(self.size))])
+		return tuple([self[x,y] for y in reversed(range(self.width)) for x in reversed(range(self.width))])
 	
 	def reflect_vertical(self):
-		return tuple([self.values[x,y] for y in reversed(range(self.size)) for x in range(self.size)])
+		return tuple([self[x,y] for y in reversed(range(self.width)) for x in range(self.width)])
 	
 	def reflect_horizontal(self):
-		return tuple([self.values[x,y] for y in range(self.size) for x in reversed(range(self.size))])
+		return tuple([self[x,y] for y in range(self.width) for x in reversed(range(self.width))])
 	
 	######### problem-specific operations ##########
 	
 	def blit(self):
-		subgrids = self.split(2 if self.size % 2 == 0 else 3)
+		subgrids = self.split(2 if self.width % 2 == 0 else 3)
 		
 		new_subgrids = {p: v.enhance() for p,v in subgrids.items()}
 		
@@ -134,23 +167,23 @@ class Grid:
 		return self.ENHANCEMENT_RULES[self]
 	
 	def count(self):
-		return sum(self.values.values())
+		return sum(self.values)
 	
-	def split(self, subgrid_size):
-		stripe_count = self.size // subgrid_size
+	def split(self, subgrid_width):
+		stripe_count = self.width // subgrid_width
 		
-		return {(X,Y): self.__class__(self.values[x,y] for y in range(Y*subgrid_size, (Y+1)*subgrid_size) for x in range(X*subgrid_size, (X+1)*subgrid_size)) for X,Y in product(range(stripe_count), repeat=2)}
+		return {(X,Y): self.__class__(self[x,y] for y in range(Y*subgrid_width, (Y+1)*subgrid_width) for x in range(X*subgrid_width, (X+1)*subgrid_width)) for X,Y in product(range(stripe_count), repeat=2)}
 	
 	@classmethod
 	def join(cls, subgrids):
 		'requires a dict[x,y] = subgrid'
 		
 		stripe_count = max(subgrids.keys())[0] + 1
-		subgrid_size = next(iter(subgrids.values())).size
-		new_size = stripe_count * subgrid_size
+		subgrid_width = next(iter(subgrids.values())).width
+		new_size = stripe_count * subgrid_width
 		
 		def subgrid_coord(x, y):
-			return tuple(zip(divmod(x, subgrid_size), divmod(y, subgrid_size)))
+			return tuple(zip(divmod(x, subgrid_width), divmod(y, subgrid_width)))
 		
 		return cls(subgrids[sp][ssp] for sp, ssp in (subgrid_coord(x,y) for y in range(new_size) for x in range(new_size)))
 
