@@ -1,4 +1,7 @@
 from collections import defaultdict
+from enum import Enum
+
+from kids.cache import cache
 
 
 DEBUG = True
@@ -8,33 +11,114 @@ def load(input_filename):
     with open(input_filename, 'r') as f:
         return [x.strip() for x in f]
 
-def run(input_filename, iterations):
-    grid = Grid.from_text(load(input_filename))
-    virus = Virus(grid)
+def run(input_filename, iterations, grid_cls):
+    grid = grid_cls.from_text(load(input_filename))
     
-    return sum(virus.burst() for i in range(iterations))
+    return sum(grid.virus.burst() == grid.enum_cls.INFECTED for i in range(iterations))
 
-def run_short_example():
-    return run('day22.input.example', 70) #should be 41
+def run1_short_example():
+    return run('day22.input.example', 70, Grid1) #should be 41
 
-def run_example():
-    return run('day22.input.example', 10000) #should be 5587
+def run1_example():
+    return run('day22.input.example', 10000, Grid1) #should be 5587
 
 def run1():
-    return run('day22.input', 10000)
+    return run('day22.input', 10000, Grid1)
 
 def run2():
     pass
 
 
-class Grid(defaultdict):
+class State(Enum):
+    @cache
+    @property
+    def symbol_map(self):
+        return {k: v for k,v in zip(self.symbols, self.__members__.values())}
+    
+    @cache
+    @property
+    def reverse_symbol_map(self):
+        return {v: k for k,v in zip(self.symbols, (x.value for x in self.__members__.values()))}
+    
+    @classmethod
+    def from_symbol(cls, symbol):
+        if symbol == '.':
+            return cls.CLEAN
+        elif symbol == '#':
+            return cls.INFECTED
+        elif symbol == 'W':
+            return cls.WEAKENED
+        elif symbol == 'F':
+            return cls.FLAGGED
+    
+    @property
+    def symbol(self):
+        return self.reverse_symbol_map()[self.value]
+    
+    def next(self):
+        pass
+    
+    @property
+    def default(self):
+        pass
+    
+    @property
+    def symbols(self):
+        pass
+
+
+class Day1State(State):
+    CLEAN = 0
+    INFECTED = 1
+    
+    DEFAULT = CLEAN
+    
+    @property
+    def symbols(self):
+        return ('.', '#')
+    
+    def next(self):
+        if self == self.__class__.CLEAN:
+            return self.__class__.INFECTED
+        else:
+            return self.__class__.CLEAN
+
+class Day2State(State):
+    CLEAN = 0
+    INFECTED = 1
+    WEAKENED = 2
+    FLAGGED = 3
+    
+    DEFAULT = CLEAN
+    
+    @property
+    def symbols(self):
+        return ('.', '#', 'W', 'F')
+    
+    def next(self):
+        if self == self.__class__.CLEAN:
+            return self.__class__.WEAKENED
+        elif self == self.__class__.WEAKENED:
+            return self.__class__.INFECTED
+        elif self == self.__class__.INFECTED:
+            return self.__class__.FLAGGED
+        elif self == self.__class__.FLAGGED:
+            return self.__class__.CLEAN
+
+
+class BaseGrid(defaultdict):
+    enum_cls = None
+    virus_cls = None
+    
     def __init__(self):
-        super().__init__(bool)
+        super().__init__(lambda: self.enum_cls.DEFAULT)
+        
+        self.virus = self.virus_cls(self)
     
     def __str__(self):
         size = max(max(abs(x) for x,y in self.keys()), max(abs(y) for x,y in self.keys()))
         
-        return '\n'.join(''.join(self[x,y] and '#' or '.' for x in range(-size, size+1)) for y in range(-size, size+1))
+        return '\n'.join(''.join(self[x,y].symbol for x in range(-size, size+1)) for y in range(-size, size+1))
     
     @classmethod
     def from_text(cls, lines):
@@ -45,7 +129,7 @@ class Grid(defaultdict):
         
         for y,line in enumerate(lines):
             for x,value in enumerate(line):
-                to_return[x - width//2, y - height//2] = value == '#'
+                to_return[x - width//2, y - height//2] = cls.enum_cls.from_symbol(value)
         
         return to_return
     
@@ -53,13 +137,7 @@ class Grid(defaultdict):
     def parity(self):
         return sum(self.values())
 
-class Virus:
-    '''
-    If the current node is infected, it turns to its right. Otherwise, it turns to its left. (Turning is done in-place; the current node does not change.)
-    If the current node is clean, it becomes infected. Otherwise, it becomes cleaned. (This is done after the node is considered for the purposes of changing direction.)
-    The virus carrier moves forward one node in the direction it is facing.
-    '''
-    
+class BaseVirus:
     DIRECTIONS = {
         (0,-1): 'up',
         (1,0): 'right',
@@ -92,14 +170,15 @@ class Virus:
         if DEBUG:
             print('now facing {}'.format(self.DIRECTIONS[self.direction]))
     
-    def infect(self):
-        to_return = not self.grid[self.position]
+    def turn_around(self):
+        if DEBUG:
+            print('turn around: ', end='')
+        
+        x,y = self.direction
+        self.direction = -x, -y
         
         if DEBUG:
-            print('try to infect: {}'.format(to_return and 'success' or 'failure'))
-        
-        self.grid[self.position] = to_return
-        return to_return
+            print('now facing {}'.format(self.DIRECTIONS[self.direction]))
     
     def move(self):
         self.position = tuple(map(sum, zip(self.position, self.direction)))
@@ -107,13 +186,57 @@ class Virus:
         if DEBUG:
             print('move to {}'.format(self.position))
     
+    def turn(self):
+        pass
+    
+    def infect(self):
+        pass
+    
     def burst(self):
-        if self.grid[self.position]:
-            self.turn_right()
-        else:
-            self.turn_left()
+        self.turn()
         
         to_return = self.infect()
         self.move()
         
         return to_return
+
+class Virus1(BaseVirus):
+    '''
+    If the current node is infected, it turns to its right. Otherwise, it turns to its left. (Turning is done in-place; the current node does not change.)
+    If the current node is clean, it becomes infected. Otherwise, it becomes cleaned. (This is done after the node is considered for the purposes of changing direction.)
+    The virus carrier moves forward one node in the direction it is facing.
+    '''
+    
+    def turn(self):
+        if self.grid[self.position] == self.grid.enum_cls.INFECTED:
+            self.turn_right()
+        else:
+            self.turn_left()
+    
+    def infect(self):
+        to_return = self.grid[self.position].next()
+        
+        if DEBUG:
+            print('try to infect: {}'.format('success' if to_return == self.grid.enum_cls.INFECTED else 'failure'))
+        
+        self.grid[self.position] = to_return
+        return to_return
+
+class Virus2(BaseVirus):
+    '''
+    Decide which way to turn based on the current node:
+        If it is clean, it turns left.
+        If it is weakened, it does not turn, and will continue moving in the same direction.
+        If it is infected, it turns right.
+        If it is flagged, it reverses direction, and will go back the way it came.
+    Modify the state of the current node, as described above.
+    The virus carrier moves forward one node in the direction it is facing.
+    '''
+
+class Grid1(BaseGrid):
+    enum_cls = Day1State
+    virus_cls = Virus1
+
+class Grid2(BaseGrid):
+    enum_cls = Day2State
+    virus_cls = Virus2
