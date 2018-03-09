@@ -14,7 +14,7 @@ def load(input_filename):
 def run(input_filename, iterations, grid_cls):
     grid = grid_cls.from_text(load(input_filename))
     
-    return sum(grid.virus.burst() == grid.enum_cls.INFECTED for i in range(iterations))
+    return sum(grid.virus.burst() for i in range(iterations))
 
 def run1_short_example():
     return run('day22.input.example', 70, Grid1) #should be 41
@@ -23,10 +23,16 @@ def run1_example():
     return run('day22.input.example', 10000, Grid1) #should be 5587
 
 def run1():
-    return run('day22.input', 10000, Grid1)
+    return run('day22.input', 10000, Grid1) #result with the input given: 5223
+
+def run2_short_example():
+    return run('day22.input.example', 100, Grid2) #should be 26
+
+def run2_example():
+    return run('day22.input.example', 10000000, Grid2) #should be 2511944
 
 def run2():
-    pass
+    return run('day22.input', 10000000, Grid2) #result with the input given: 2511456
 
 
 class State(Enum):
@@ -170,16 +176,6 @@ class BaseVirus:
         if DEBUG:
             print('now facing {}'.format(self.DIRECTIONS[self.direction]))
     
-    def turn_around(self):
-        if DEBUG:
-            print('turn around: ', end='')
-        
-        x,y = self.direction
-        self.direction = -x, -y
-        
-        if DEBUG:
-            print('now facing {}'.format(self.DIRECTIONS[self.direction]))
-    
     def move(self):
         self.position = tuple(map(sum, zip(self.position, self.direction)))
         
@@ -190,7 +186,14 @@ class BaseVirus:
         pass
     
     def infect(self):
-        pass
+        next_value = self.grid[self.position].next()
+        
+        if DEBUG:
+            print('try to infect: {}'.format('success' if next_value == self.grid.enum_cls.INFECTED else 'failure'))
+        
+        self.grid[self.position] = next_value
+        
+        return next_value == self.grid.enum_cls.INFECTED
     
     def burst(self):
         self.turn()
@@ -212,15 +215,6 @@ class Virus1(BaseVirus):
             self.turn_right()
         else:
             self.turn_left()
-    
-    def infect(self):
-        to_return = self.grid[self.position].next()
-        
-        if DEBUG:
-            print('try to infect: {}'.format('success' if to_return == self.grid.enum_cls.INFECTED else 'failure'))
-        
-        self.grid[self.position] = to_return
-        return to_return
 
 class Virus2(BaseVirus):
     '''
@@ -232,6 +226,34 @@ class Virus2(BaseVirus):
     Modify the state of the current node, as described above.
     The virus carrier moves forward one node in the direction it is facing.
     '''
+    
+    def turn_around(self):
+        if DEBUG:
+            print('turn around: ', end='')
+        
+        x,y = self.direction
+        self.direction = -x, -y
+        
+        if DEBUG:
+            print('now facing {}'.format(self.DIRECTIONS[self.direction]))
+    
+    def turn_straight(self):
+        if DEBUG:
+            print('not turning: still facing {}'.format(self.DIRECTIONS[self.direction]))
+    
+    def turn(self):
+        current_value = self.grid[self.position]
+        
+        if current_value == self.grid.enum_cls.CLEAN:
+            self.turn_left()
+        elif current_value == self.grid.enum_cls.WEAKENED:
+            self.turn_straight()
+        elif current_value == self.grid.enum_cls.INFECTED:
+            self.turn_right()
+        elif current_value == self.grid.enum_cls.FLAGGED:
+            self.turn_around()
+        else:
+            raise Exception('how the shit did you get here? current_value: {}'.format(current_value))
 
 class Grid1(BaseGrid):
     enum_cls = Day1State
