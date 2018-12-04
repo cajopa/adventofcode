@@ -57,6 +57,11 @@ def part1():
 
 def part2():
     guards = _parse_input_stream(load('input/4'))
+    
+    #find the sleepiest sleepiest minute
+    sleepiest_guard = max(guards.values(), key=lambda x: len(x.minutes_by_sleepiness) and x.minutes_by_sleepiness.most_common(1)[0][1])
+    
+    return sleepiest_guard.id * sleepiest_guard.sleepiest_minute
 
 def _parse_input_stream(data):
     #sort so actions have correct referents
@@ -93,7 +98,11 @@ class Guard:
     
     @property
     def sleepiest_minute(self):
-        return Counter(chain.from_iterable(self.asleep_ranges)).most_common(1)[0][0]
+        return self.minutes_by_sleepiness.most_common(1)[0][0]
+    
+    @property
+    def minutes_by_sleepiness(self):
+        return Counter(chain.from_iterable(self.asleep_ranges))
     
     def sleep(self, time):
         self.asleep_time = time
