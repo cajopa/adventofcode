@@ -3,17 +3,6 @@ from itertools import chain
 import re
 
 
-'''
-[1518-09-16 23:57] Guard #1889 begins shift
-[1518-04-16 00:03] Guard #2897 begins shift
-[1518-04-29 23:57] Guard #1663 begins shift
-[1518-05-27 00:47] wakes up
-[1518-04-27 23:50] Guard #661 begins shift
-[1518-08-29 00:58] wakes up
-[1518-09-26 00:48] falls asleep
-'''
-
-
 BEGIN_SHIFT = object()
 WAKE_UP = object()
 FALL_ASLEEP = object()
