@@ -48,8 +48,17 @@ def load(input_filename):
             }
 
 def part1():
-    data = load('input/4')
+    guards = _parse_input_stream(load('input/4'))
     
+    #find the sleepiest guard
+    sleepiest_guard = max(guards.values(), key=lambda x: x.total_sleep_time)
+    
+    return sleepiest_guard.id * sleepiest_guard.sleepiest_minute
+
+def part2():
+    guards = _parse_input_stream(load('input/4'))
+
+def _parse_input_stream(data):
     #sort so actions have correct referents
     sorted_actions = sorted(data, key=lambda x: (x['date'], x['time']))
     
@@ -64,13 +73,7 @@ def part1():
         elif action['act'] is WAKE_UP:
             current_guard.waken(action['time'])
     
-    #find the sleepiest guard
-    sleepiest_guard = max(guards.values(), key=lambda x: x.total_sleep_time)
-    
-    return sleepiest_guard.id * sleepiest_guard.sleepiest_minute
-
-def part2():
-    data = load('input/4')
+    return guards
 
 
 class Guard:
