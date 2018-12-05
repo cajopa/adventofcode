@@ -1,3 +1,6 @@
+from collections import Counter
+
+
 def load(input_filename):
     with open(input_filename, 'r') as f:
         return f.read().strip()
@@ -24,8 +27,12 @@ def part1(data=None, debug=False):
     
     return current_polymer
 
-def part2():
-    pass
+def part2(data=None, debug=False):
+    data = data or load('input/5')
+    
+    letter_histogram = Counter(data.lower())
+    
+    return min(((x,len(part1(data=data.replace(x,'').replace(x.upper(),'')))) for x in (y for y,_ in letter_histogram.most_common())), key=lambda x: x[1])
 
 def _react(data):
     previous = []
