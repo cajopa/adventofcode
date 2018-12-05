@@ -2,18 +2,25 @@ def load(input_filename):
     with open(input_filename, 'r') as f:
         return f.read().strip()
 
-def part1(data=None):
+def part1(data=None, debug=False):
     data = data or load('input/5')
     
     current_polymer = data
     
+    if debug:
+        print(current_polymer)
+    
     while True:
-        next_polymer = ''.join(_react(current_polymer))
+        # next_polymer = ''.join(_react(current_polymer))
+        next_polymer = _minireact(current_polymer)
         
         if current_polymer == next_polymer:
             break
         else:
             current_polymer = next_polymer
+            
+            if debug:
+                print(current_polymer)
     
     return current_polymer
 
@@ -40,3 +47,12 @@ def _react(data):
     
     if previous:
         yield from previous
+
+def _minireact(data):
+    #find and destroy the first reacting pair, and return the rest (so dumb!)
+    
+    for i,(a,b) in enumerate(zip(data, data[1:].swapcase())):
+        if a == b:
+            return data[:i] + data[i+2:]
+    
+    return data
