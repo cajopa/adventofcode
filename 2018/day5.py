@@ -1,4 +1,7 @@
 from collections import Counter
+from itertools import chain
+import re
+import string
 
 
 def load(input_filename):
@@ -16,6 +19,7 @@ def part1(data=None, debug=False):
     while True:
         # next_polymer = ''.join(_react(current_polymer))
         next_polymer = _minireact(current_polymer)
+        # next_polymer = _microreact(current_polymer)
         
         if current_polymer == next_polymer:
             break
@@ -63,3 +67,10 @@ def _minireact(data):
             return data[:i] + data[i+2:]
     
     return data
+
+def _microreact(data):
+    return re.sub('(?:aA|bB|cC|dD|eE|fF|gG|hH|iI|jJ|kK|lL|mM|nN|oO|pP|qQ|rR|sS|tT|uU|vV|wW|xX|yY|zZ|Aa|Bb|Cc|Dd|Ee|Ff|Gg|Hh|Ii|Jj|Kk|Ll|Mm|Nn|Oo|Pp|Qq|Rr|Ss|Tt|Uu|Vv|Ww|Xx|Yy|Zz)',
+        '',
+        data,
+        count=1
+    )
