@@ -60,8 +60,14 @@ class Line:
     def _determinant(self, line):
         return self.vector.y*line.vector.x - self.vector.x*line.vector.y
     
-    def intersects(self, line):
-        return self._determinant(line) != 0
+    def intersects(self, other):
+        if isinstance(other, Line):
+            if type(other) is Line:
+                return self._determinant(other) != 0
+            else:
+                return other.intersects(self)
+        else:
+            raise ValueError('other must be a line')
 
 class Ray(Line):
     def intersects(self, line):
