@@ -28,6 +28,10 @@ class Point:
         self.x = x
         self.y = y
     
+    def __repr__(self):
+        return f'<Point x:{self.x} y:{self.y}>'
+    __str__=__repr__
+    
     @property
     def has_finite_area(self):
         #is the area bounded by the bisections of the lines between this and every other point entirely convex?
@@ -41,6 +45,10 @@ class LineSegment:
     def __init__(self, start, end):
         self.start = start
         self.end = end
+    
+    def __repr__(self):
+        return f'<LineSegment start:{self.start} end:{self.end}>'
+    __str__=__repr__
     
     @property
     def as_vector(self):
@@ -56,6 +64,10 @@ class Line:
     def __init__(self, start, vector):
         self.start = start
         self.vector = vector
+    
+    def __repr__(self):
+        return f'<Line start:{self.start} vector:{self.vector}>'
+    __str__=__repr__
     
     def _determinant(self, line):
         return self.vector.y*line.vector.x - self.vector.x*line.vector.y
@@ -83,6 +95,9 @@ class Line:
             return False
 
 class Ray(Line):
+    def __repr__(self):
+        return f'<Ray start:{self.start} vector:{self.vector}>'
+    
     def intersects(self, line):
         determinant = self._determinant(line)
         
@@ -97,10 +112,18 @@ class Edge:
     def __init__(self, line, normal):
         self.line = line
         self.normal = normal
+    
+    def __repr__(self):
+        return f'<Edge line:{self.line} normal:{self.normal}>'
+    __str__=__repr__
 
 class Area:
     def __init__(self, edges):
         self.edges = list(edges)
+    
+    def __repr__(self):
+        return f'<Area edges:{self.edges}>'
+    __str__=__repr__
     
     def __contains__(self, point):
         if len(self.edges) == 1:
@@ -150,6 +173,10 @@ class Vector:
         self.x = x / divisor
         self.y = y / divisor
     
+    def __repr__(self):
+        return f'<Vector x:{self.x} y:{self.y}>'
+    __str__=__repr__
+    
     def __eq__(self, other):
         return self.x == other.x and self.y == other.y
     
@@ -171,3 +198,7 @@ class Grid:
         
         for point in points:
             point.grid = self
+    
+    def __repr__(self):
+        return f'<Grid points:{self.points}>'
+    __str__=__repr__
