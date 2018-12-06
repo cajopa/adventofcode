@@ -68,6 +68,13 @@ class Line:
                 return other.intersects(self)
         else:
             raise ValueError('other must be a line')
+    
+    def congruent_with(self, other):
+        return (
+            isinstance(other, Line)
+            and self.vector == other.vector
+            and (self.start.x - other.start.x) / self.vector.x == (self.start.y - other.start.y) / self.vector.y
+        )
 
 class Ray(Line):
     def intersects(self, line):
@@ -89,9 +96,19 @@ class Area:
     def __init__(self, edges):
         self.edges = list(edges)
     
+    @classmethod
+    def split_plane(cls, line, point):
+        left_side = cls([Edge(line, Vector(-1,0))])
+        right_side = cls([Edge(line, Vector(1,0))])
+        
+        if point in left_side:
+            return left_side
+        else:
+            return right_side
+    
     def __contains__(self, point):
         if len(self.edges) == 1:
-            return Ray(point, self.edges[0].normal.inverse).intersects(self.edges[0].line)
+            return Ray(point, self.edges[0].normal.reverse).intersects(self.edges[0].line)
         else:
             return all((point in x) for x in self.decomposition)
     
@@ -130,7 +147,7 @@ class Vector:
         return self.__class__(-self.y, self.x)
     
     @property
-    def inverse(self):
+    def reverse(self):
         return self.__class__(-self.x, -self.y)
 
 class Grid:
