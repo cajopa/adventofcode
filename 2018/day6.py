@@ -70,11 +70,17 @@ class Line:
             raise ValueError('other must be a line')
     
     def congruent_with(self, other):
-        return (
-            isinstance(other, Line)
-            and self.vector == other.vector
-            and (self.start.x - other.start.x) / self.vector.x == (self.start.y - other.start.y) / self.vector.y
-        )
+        try:
+            return (
+                isinstance(other, Line)
+                and self.vector == other.vector
+                and (
+                    (self.vector.x == self.vector.y == 0)
+                    or (self.start.x - other.start.x) / self.vector.x == (self.start.y - other.start.y) / self.vector.y
+                )
+            )
+        except ZeroDivisionError:
+            return False
 
 class Ray(Line):
     def intersects(self, line):
@@ -96,6 +102,18 @@ class Area:
     def __init__(self, edges):
         self.edges = list(edges)
     
+    def __contains__(self, point):
+        if len(self.edges) == 1:
+            return Ray(point, self.edges[0].normal.reverse).intersects(self.edges[0].line)
+        else:
+            return all((point in x) for x in self.decomposition)
+    
+    def __or__(self, other):
+        return self.intersection(other)
+    
+    def __ior__(self, other):
+        return self.intersection_update(other)
+    
     @classmethod
     def split_plane(cls, line, point):
         left_side = cls([Edge(line, Vector(-1,0))])
@@ -106,12 +124,6 @@ class Area:
         else:
             return right_side
     
-    def __contains__(self, point):
-        if len(self.edges) == 1:
-            return Ray(point, self.edges[0].normal.reverse).intersects(self.edges[0].line)
-        else:
-            return all((point in x) for x in self.decomposition)
-    
     def intersection(self, other):
         return self.__class__(self.edges + other.edges)
     
@@ -121,7 +133,10 @@ class Area:
     @property
     def is_bounded(self):
         #do all edges intersect at least two distinct others?
-        pass
+        
+        edge_intersections = {x: [y for y in self.edges if not x.line.congruent_with(y.line) and x.line.intersects(y.line)] for x in self.edges}
+        
+        return all(len(x) >= 2 for x in edge_intersections.values())
     
     @property
     def decomposition(self):
