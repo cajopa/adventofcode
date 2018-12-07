@@ -1,3 +1,5 @@
+from functools import reduce
+import operator as op
 import re
 
 
@@ -32,11 +34,18 @@ class Point:
         return f'<Point x:{self.x} y:{self.y}>'
     __str__=__repr__
     
+    def __eq__(self, other):
+        return isinstance(other, Point) and self.x == other.x and self.y == other.y
+    
+    @property
+    def area(self):
+        return reduce(op.or_, (Area.split_plane(LineSegment(self, x).bisection, self) for x in self.grid.points if x != self))
+    
     @property
     def has_finite_area(self):
         #is the area bounded by the bisections of the lines between this and every other point entirely convex?
         
-        pass
+        return self.area.is_bounded
     
     def distance_to(self, other):
         return (self.x - other.x) + (self.y - other.y)
@@ -141,11 +150,19 @@ class Area:
     def split_plane(cls, line, point):
         left_side = cls([Edge(line, Vector(-1,0))])
         right_side = cls([Edge(line, Vector(1,0))])
+        top_side = cls([Edge(line, Vector(0,1))])
+        bottom_side = cls([Edge(line, Vector(0,-1))])
         
-        if point in left_side:
-            return left_side
+        if line.vector.y == 0:
+            if point in top_side:
+                return top_side
+            else:
+                return bottom_side
         else:
-            return right_side
+            if point in left_side:
+                return left_side
+            else:
+                return right_side
     
     def intersection(self, other):
         return self.__class__(self.edges + other.edges)
