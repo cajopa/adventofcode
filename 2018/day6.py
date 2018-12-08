@@ -1,4 +1,6 @@
 from functools import reduce
+from itertools import combinations, permutations
+import math
 import operator as op
 import re
 
@@ -38,14 +40,8 @@ class Point:
         return isinstance(other, Point) and self.x == other.x and self.y == other.y
     
     @property
-    def area(self):
+    def smooth_area(self):
         return reduce(op.or_, (Area.split_plane(LineSegment(self, x).bisection, self) for x in self.grid.points if x != self))
-    
-    @property
-    def has_finite_area(self):
-        #is the area bounded by the bisections of the lines between this and every other point entirely convex?
-        
-        return self.area.is_bounded
     
     def distance_to(self, other):
         return (self.x - other.x) + (self.y - other.y)
@@ -148,21 +144,13 @@ class Area:
     
     @classmethod
     def split_plane(cls, line, point):
-        left_side = cls([Edge(line, Vector(-1,0))])
-        right_side = cls([Edge(line, Vector(1,0))])
-        top_side = cls([Edge(line, Vector(0,1))])
-        bottom_side = cls([Edge(line, Vector(0,-1))])
+        cw_side = cls([Edge(line, line.vector.clockwise)])
+        ccw_side = cls([Edge(line, line.vector.counterclockwise)])
         
-        if line.vector.y == 0:
-            if point in top_side:
-                return top_side
-            else:
-                return bottom_side
+        if point in cw_side:
+            return cw_side
         else:
-            if point in left_side:
-                return left_side
-            else:
-                return right_side
+            return ccw_side
     
     def intersection(self, other):
         return self.__class__(self.edges + other.edges)
@@ -172,11 +160,17 @@ class Area:
     
     @property
     def is_bounded(self):
-        #do all edges intersect at least two distinct others?
+        #is there a set of edges that form a ring?
+        # edge_intersections = {x: [y for y in self.edges if not x.line.congruent_with(y.line) and x.line.intersects(y.line)] for x in self.edges}
         
-        edge_intersections = {x: [y for y in self.edges if not x.line.congruent_with(y.line) and x.line.intersects(y.line)] for x in self.edges}
+        for size in range(3, len(self.edges) + 1):
+            for sequence in permutations(self.edges, size):
+                sequence = list(sequence)
+                
+                if all(x.line.intersects(y.line) for x,y in zip(sequence, [sequence[-1]] + sequence[:-1])):
+                    return True
         
-        return all(len(x) >= 2 for x in edge_intersections.values())
+        return False
     
     @property
     def decomposition(self):
@@ -208,14 +202,28 @@ class Vector:
     @property
     def reverse(self):
         return self.__class__(-self.x, -self.y)
+    
+    @property
+    def magnitude(self):
+        return (self.x**2 + self.y**2) ** 0.5
+    
+    def dot_product(self, other):
+        return self.x * other.x + self.y * other.y
+    
+    def angle_between(self, other):
+        return math.acos(self.dot_product(other) / self.magnitude / other.magnitude)
 
 class Grid:
     def __init__(self, points):
         self.points = tuple(points)
         
-        for point in points:
+        for point in self.points:
             point.grid = self
     
     def __repr__(self):
         return f'<Grid points:{self.points}>'
     __str__=__repr__
+    
+    @property
+    def points_with_finite_areas(self):
+        return [x for x in self.points if x.smooth_area.is_bounded]
