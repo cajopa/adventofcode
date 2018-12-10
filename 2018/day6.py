@@ -257,7 +257,7 @@ class Area:
                     yield x.line & y.line
     
     @property
-    def is_bounded(self):
+    def is_bounded(self): ###FIXME: returns true for everything
         #is there a set of edges that form a ring AND (only for convex areas) are all points in the set in the split planes defined by the edges?
         
         #this looks bizarre, but Area.__contains__ takes normals into account
