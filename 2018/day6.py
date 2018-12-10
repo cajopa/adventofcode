@@ -1,5 +1,5 @@
 from functools import reduce
-from itertools import combinations, permutations
+from itertools import permutations, count
 import math
 import operator as op
 import re
@@ -90,8 +90,34 @@ class Point(Vector):
     def smooth_area(self):
         return reduce(op.and_, (Area.split_plane(LineSegment(self, x).bisection, self) for x in self.grid.points if x != self))
     
+    @property
+    def manhattan_area(self):
+        #extend outward in concentric rings (diamonds), testing the distance to every point
+        #once a full ring has been done without finding one closest to me, stop
+        
+        for distance in count(0):
+            found_any = False
+            
+            for candidate in self.points_at_distance(distance):
+                if all(distance < candidate.distance_to(x) for x in self.grid.points if x != self):
+                    found_any = True
+                    yield candidate
+            
+            if not found_any:
+                break
+    
+    def points_at_distance(self, distance):
+        for x in range(-distance, distance+1):
+            if abs(x) == distance:
+                yield self.__class__(self.x + x, self.y)
+            else:
+                y_magnitude = distance - abs(x)
+                
+                yield self.__class__(self.x + x, self.y + y_magnitude)
+                yield self.__class__(self.x + x, self.y - y_magnitude)
+    
     def distance_to(self, other):
-        return (self.x - other.x) + (self.y - other.y)
+        return abs(self.x - other.x) + abs(self.y - other.y)
 
 class LineSegment:
     def __init__(self, start, end):
