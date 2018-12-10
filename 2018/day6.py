@@ -14,15 +14,39 @@ def load(input_filename):
             
             yield Point(int(match.group('x')), int(match.group('y')))
 
-def part1(data=None, test=False, debug=False):
+def common_part(data=None, test=False):
     data = data or (test and load('input/6.test')) or load('input/6')
     
     grid = Grid(data)
     
     return grid
 
-def part2(data=None, debug=False):
-    pass
+def part1(data=None, test=False):
+    return common_part(data, test)
+
+def part2(distance_threshold, data=None, test=False):
+    grid = common_part(data, test)
+    
+    minx = min(x.x for x in grid.points) - distance_threshold
+    miny = min(x.y for x in grid.points) - distance_threshold
+    maxx = max(x.x for x in grid.points) + distance_threshold
+    maxy = max(x.y for x in grid.points) + distance_threshold
+    
+    for x,y in ((x,y) for x in range(minx, maxx+1) for y in range(miny, maxy+1)):
+        candidate = Point(x,y)
+        total_distance = 0
+        
+        #summing manually so as to shortcut if the threshold is passed
+        for point in grid.points:
+            total_distance += candidate.distance_to(point)
+            if total_distance >= distance_threshold:
+                total_distance = None
+                break
+        
+        if total_distance and total_distance < distance_threshold:
+            yield (x,y), total_distance
+    
+    ### NOTE: yielded 47841 qualifying points in about 10 minutes
 
 
 class Vector:
