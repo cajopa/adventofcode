@@ -235,16 +235,15 @@ class Area:
         self.edges.extend(other.edges)
     
     def subareas(self, size):
-        yield from map(Area, self.rings)
+        yield from map(Area, self.rings(size))
     
     @property
     def all_subareas(self):
         for size in range(3, len(self.edges) + 1):
             yield from self.subareas(size)
     
-    @property
-    def rings(self):
-        for sequence in permutations(self.edges):
+    def rings(self, size=None):
+        for sequence in permutations(self.edges, size or (len(self.edges) + 1)):
             sequence = list(sequence)
             
             if all(x.line.intersects(y.line) and not x.line.congruent_with(y.line) for x,y in zip(sequence, sequence[-1:] + sequence[:-1])):
@@ -252,7 +251,7 @@ class Area:
     
     @property
     def vertices(self):
-        for ring in self.rings:
+        for ring in self.rings():
             for x,y in zip(ring, ring[:-1] + ring[:-1]):
                 if x.line.intersects(y.line):
                     yield x.line & y.line
@@ -278,6 +277,14 @@ class Grid:
     def __repr__(self):
         return f'<Grid points:{self.points}>'
     __str__=__repr__
+    
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            return next(x for x in self.points if x.name == key)
+        elif isinstance(key, int):
+            return self.points[key]
+        else:
+            return next(x for x in self.points if x.x == key.x and x.y == key.y)
     
     @property
     def points_with_finite_areas(self):
