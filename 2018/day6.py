@@ -88,7 +88,7 @@ class Point(Vector):
     
     @property
     def smooth_area(self):
-        return reduce(op.or_, (Area.split_plane(LineSegment(self, x).bisection, self) for x in self.grid.points if x != self))
+        return reduce(op.and_, (Area.split_plane(LineSegment(self, x).bisection, self) for x in self.grid.points if x != self))
     
     def distance_to(self, other):
         return (self.x - other.x) + (self.y - other.y)
@@ -124,17 +124,25 @@ class Line:
     def __contains__(self, point):
         return self.vector.y * (point.x - self.start.x) == self.vector.x * (point.y - self.start.y)
     
-    def _determinant(self, line):
+    def __and__(self, other):
+        return self.intersection(other)
+    
+    def determinant(self, line):
         return self.vector.y*line.vector.x - self.vector.x*line.vector.y
     
     def intersects(self, other):
         if isinstance(other, Line):
             if type(other) is Line:
-                return self._determinant(other) != 0
+                return self.determinant(other) != 0
             else:
                 return other.intersects(self)
         else:
             raise ValueError('other must be a Line')
+    
+    def intersection(self, other):
+        u = (other.vector.x * (other.start.y - self.start.y) - other.vector.y * (other.start.x - self.start.x)) / self.determinant(other)
+        
+        return Point(self.start.x + u * self.vector.x, self.start.y + u * self.vector.y)
     
     def congruent_with(self, other):
         try:
@@ -147,7 +155,7 @@ class Ray(Line):
         return f'<Ray start:{self.start} vector:{self.vector}>'
     
     def intersects(self, line):
-        determinant = self._determinant(line)
+        determinant = self.determinant(line)
         if determinant:
             tr = (line.vector.x*(line.start.y - self.start.y) - line.vector.y*(line.start.x - self.start.x)) / determinant
             
@@ -178,7 +186,7 @@ class Area:
         else:
             return all((point in x) for x in self.decomposition)
     
-    def __or__(self, other):
+    def __and__(self, other):
         return self.intersection(other)
     
     def __ior__(self, other):
@@ -200,40 +208,35 @@ class Area:
     def intersection_update(self, other):
         self.edges.extend(other.edges)
     
-    def is_bounded_around(self, point):
-        #is there a set of edges that form a ring AND is the point still inside it?
-        
-        def third_point(x, y, z):
-            if z.line.start in x.line or z.line.start in y.line:
-                to_return = z.line.start + z.line.vector
-            else:
-                to_return = z.line.start
-            
-            return to_return
-        
+    def subareas(self, size):
+        yield from map(Area, self.rings)
+    
+    @property
+    def all_subareas(self):
         for size in range(3, len(self.edges) + 1):
-            for sequence in permutations(self.edges, size):
-                sequence = list(sequence)
-                
-                # if all(x.line.intersects(y.line) and not x.line.congruent_with(y.line) for x,y in zip(sequence, [sequence[-1]] + sequence[:-1])):
-                #     if all(point in Area([x]) for x in sequence):
-                #         return True
-                
-                # if all(x.line.intersects(y.line) and not x.line.congruent_with(y.line) for x,y in zip(sequence, sequence[-1:] + sequence[:-1])):
-                #     if all(point in Area.split_plane(x.line, third_point) for x in sequence):
-                #         return True
-                
-                for x,y,z in zip(sequence, sequence[-1:] + sequence[:-1], sequence[-2:] + sequence[:-2]):
-                    if not (
-                        x.line.intersects(y.line)
-                        and not x.line.congruent_with(y.line)
-                        and point in Area.split_plane(x.line, third_point(x,y,z))
-                    ):
-                        break
-                    
-                    return True
+            yield from self.subareas(size)
+    
+    @property
+    def rings(self):
+        for sequence in permutations(self.edges):
+            sequence = list(sequence)
+            
+            if all(x.line.intersects(y.line) and not x.line.congruent_with(y.line) for x,y in zip(sequence, sequence[-1:] + sequence[:-1])):
+                yield sequence
+    
+    @property
+    def vertices(self):
+        for ring in self.rings:
+            for x,y in zip(ring, ring[:-1] + ring[:-1]):
+                if x.line.intersects(y.line):
+                    yield x.line & y.line
+    
+    @property
+    def is_bounded(self):
+        #is there a set of edges that form a ring AND (only for convex areas) are all points in the set in the split planes defined by the edges?
         
-        return False
+        #this looks bizarre, but Area.__contains__ takes normals into account
+        return any(all(vertex in subarea for vertex in subarea.vertices) for subarea in self.all_subareas)
     
     @property
     def decomposition(self):
@@ -252,4 +255,4 @@ class Grid:
     
     @property
     def points_with_finite_areas(self):
-        return [x for x in self.points if x.smooth_area.is_bounded_around(x)]
+        return [x for x in self.points if x.smooth_area.is_bounded]
