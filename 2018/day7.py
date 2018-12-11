@@ -12,22 +12,24 @@ def load(input_filename):
             
             yield match.group('predicate'), match.group('consequent')
 
-def common_part(data=None, test=False):
+def common_part(data=None, test=False, workers=None, base_duration=None):
     raw_instructions = list(data or (test and load('input/7.test')) or load('input/7'))
+    workers = workers or (test and 2) or 5
+    base_duration = base_duration or (test and 0) or (not test and 60)
     
     steps = {}
     
     #first pass creates the steps bare
     for pre, con in raw_instructions:
-        steps.setdefault(con, Step(con))
-        steps.setdefault(pre, Step(pre))
+        steps.setdefault(con, Step(con, base_duration=base_duration))
+        steps.setdefault(pre, Step(pre, base_duration=base_duration))
     
     #second pass hooks them up
     for pre, con in raw_instructions:
         steps[pre].consequents.add(steps[con])
         steps[con].predicates.add(steps[pre])
     
-    return Instructions(steps.values())
+    return Instructions(steps.values(), workers=workers)
 
 def part1(data=None, test=False):
     '''
@@ -38,15 +40,22 @@ def part1(data=None, test=False):
     
     return iter(common_part(data, test))
 
-def part2(data=None, test=False):
-    pass
+def part2(data=None, workers=None, base_duration=None, test=False):
+    '''
+    With 5 workers and the 60+ second step durations described above, how long will it take to complete all of the steps?
+    
+    Each step takes 60 seconds plus an amount corresponding to its letter.
+    '''
+    
+    return common_part(data=data, test=test, workers=workers, base_duration=base_duration)
 
 
 class Step:
-    def __init__(self, name, predicates=[], consequents=[]):
+    def __init__(self, name, predicates=[], consequents=[], base_duration=0):
         self.name = name
         self.predicates = set(predicates)
         self.consequents = set(consequents)
+        self.base_duration = name and base_duration + ord(name) - ord('A') + 1
         
         self.instructions = None
     
@@ -55,11 +64,12 @@ class Step:
     __str__=__repr__
 
 class Instructions:
-    def __init__(self, steps):
+    def __init__(self, steps, workers=1):
         self.steps = set()
         
         self._current = None
         self.completed = None
+        self.workers = workers
         
         for step in steps:
             step.instructions = self
