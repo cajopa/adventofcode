@@ -12,9 +12,8 @@ def load(input_filename):
             
             yield match.group('predicate'), match.group('consequent')
 
-def common_part(data=None, test=False, workers=None, base_duration=None):
+def common_part(data=None, test=False, base_duration=None):
     raw_instructions = list(data or (test and load('input/7.test')) or load('input/7'))
-    workers = workers or (test and 2) or 5
     base_duration = base_duration or (test and 0) or (not test and 60)
     
     steps = {}
@@ -29,7 +28,7 @@ def common_part(data=None, test=False, workers=None, base_duration=None):
         steps[pre].consequents.add(steps[con])
         steps[con].predicates.add(steps[pre])
     
-    return Instructions(steps.values(), workers=workers)
+    return steps.values()
 
 def part1(data=None, test=False):
     '''
@@ -38,7 +37,7 @@ def part1(data=None, test=False):
     If more than one step is ready, choose the step which is first alphabetically.
     '''
     
-    return iter(common_part(data, test))
+    return SingleInstructions(common_part(data, test))
 
 def part2(data=None, workers=None, base_duration=None, test=False):
     '''
@@ -47,7 +46,7 @@ def part2(data=None, workers=None, base_duration=None, test=False):
     Each step takes 60 seconds plus an amount corresponding to its letter.
     '''
     
-    return common_part(data=data, test=test, workers=workers, base_duration=base_duration)
+    return MultiInstructions(common_part(data=data, test=test, base_duration=base_duration), workers=workers or (test and 2) or 5)
 
 
 class Step:
@@ -63,41 +62,31 @@ class Step:
         return f'<{self.__class__.__name__} {self.name}>'
     __str__=__repr__
 
-class Instructions:
-    def __init__(self, steps, workers=1):
+class BaseInstructions:
+    def __init__(self, steps):
         self.steps = set()
         
-        self._current = None
         self.completed = None
-        self.workers = workers
         
         for step in steps:
             step.instructions = self
             self.steps.add(step)
     
     def __repr__(self):
-        return f'<{self.__class__.__name__} @{self.current}>'
-    __str__=__repr__
+        raise NotImplementedError
+    
+    def __str__(self):
+        return self.__repr__()
     
     def __iter__(self):
-        self.completed = set()
-        self.current = self.preroot
+        self.completed = {self.preroot}
         
         return self
     
     def __next__(self):
         'The step that should be executed next.'
         
-        ready = self.ready
-        
-        if len(ready) == 0:
-            raise StopIteration
-        elif len(ready) == 1:
-            self.current = ready.pop()
-        else:
-            self.current = sorted(ready, key=lambda x: x.name)[0]
-        
-        return self.current
+        raise NotImplementedError
     
     def __getitem__(self, key):
         try:
@@ -106,13 +95,15 @@ class Instructions:
             raise KeyError(key)
     
     @property
-    def current(self):
-        return self._current
-    
-    @current.setter
-    def current(self, value):
-        self.completed.add(value)
-        self._current = value
+    def next_step(self):
+        ready = self.ready
+        
+        if len(ready) == 0:
+            raise StopIteration
+        elif len(ready) == 1:
+            return ready.pop()
+        else:
+            return sorted(ready, key=lambda x: x.name)[0]
     
     @property
     def roots(self):
@@ -142,3 +133,32 @@ class Instructions:
         satisfied = {x for x in candidates if x.predicates <= self.completed}
         
         return satisfied - self.completed
+
+class SingleInstructions(BaseInstructions):
+    def __next__(self):
+        'The step that should be executed next.'
+        
+        ready = self.ready
+        
+        if len(ready) == 0:
+            raise StopIteration
+        elif len(ready) == 1:
+            current = ready.pop()
+        else:
+            current = sorted(ready, key=lambda x: x.name)[0]
+        
+        self.completed.add(current)
+        
+        return current
+
+class MultiInstructions(BaseInstructions):
+    def __init__(self, steps, workers=1):
+        super().__init__(steps)
+        
+        self.workers = workers
+    
+    def __iter__(self):
+        pass
+    
+    def __next__(self):
+        pass
