@@ -12,16 +12,20 @@ def load(input_filename):
             
             yield match.group('predicate'), match.group('consequent')
 
-def common_part(data=None, test=False, base_duration=None):
+def common_part(data=None, test=False, step_class=None, **kwargs):
     raw_instructions = list(data or (test and load('input/7.test')) or load('input/7'))
-    base_duration = base_duration or (test and 0) or (not test and 60)
+    
+    if 'base_duration' in kwargs and kwargs['base_duration'] is None:
+        kwargs['base_duration'] = 0 if test else 60
+    
+    step_class = step_class or Step
     
     steps = {}
     
     #first pass creates the steps bare
     for pre, con in raw_instructions:
-        steps.setdefault(con, Step(con, base_duration=base_duration))
-        steps.setdefault(pre, Step(pre, base_duration=base_duration))
+        steps.setdefault(con, step_class(con, **kwargs))
+        steps.setdefault(pre, step_class(pre, **kwargs))
     
     #second pass hooks them up
     for pre, con in raw_instructions:
@@ -46,21 +50,40 @@ def part2(data=None, workers=None, base_duration=None, test=False):
     Each step takes 60 seconds plus an amount corresponding to its letter.
     '''
     
-    return MultiInstructions(common_part(data=data, test=test, base_duration=base_duration), workers=workers or (test and 2) or 5)
+    return sum(x for _,x in _part2(data=data,workers=workers,base_duration=base_duration,test=test))
+
+def _part2(data=None, workers=None, base_duration=None, test=False):
+    return MultiInstructions(
+        common_part(
+            data=data,
+            test=test,
+            step_class=DurationStep,
+            base_duration=base_duration
+        ),
+        workers=workers or (test and 2) or 5
+    )
 
 
 class Step:
-    def __init__(self, name, predicates=[], consequents=[], base_duration=0):
+    def __init__(self, name, predicates=[], consequents=[]):
         self.name = name
         self.predicates = set(predicates)
         self.consequents = set(consequents)
-        self.base_duration = name and base_duration + ord(name) - ord('A') + 1
         
         self.instructions = None
     
     def __repr__(self):
         return f'<{self.__class__.__name__} {self.name}>'
-    __str__=__repr__
+    
+    def __str__(self):
+        return self.__repr__()
+
+class DurationStep(Step):
+    def __init__(self, name, predicates=[], consequents=[], base_duration=0):
+        super().__init__(name, predicates, consequents)
+        
+        self.duration = (base_duration + ord(name) - ord('A') + 1) if name else 0
+        self.remaining_duration = self.duration
 
 class BaseInstructions:
     def __init__(self, steps):
@@ -96,14 +119,18 @@ class BaseInstructions:
     
     @property
     def next_step(self):
+        return self.next_steps[0]
+    
+    @property
+    def next_steps(self):
         ready = self.ready
         
         if len(ready) == 0:
             raise StopIteration
         elif len(ready) == 1:
-            return ready.pop()
+            return list(ready)
         else:
-            return sorted(ready, key=lambda x: x.name)[0]
+            return sorted(ready, key=lambda x: x.name)
     
     @property
     def roots(self):
@@ -120,7 +147,14 @@ class BaseInstructions:
     def preroot(self):
         'A virtual node that acts as a starting point for walking.'
         
-        return Step(None, consequents=self.roots)
+        roots = self.roots
+        
+        to_return = Step(None, consequents=self.roots)
+        
+        for root in roots:
+            root.predicates = {to_return}
+        
+        return to_return
     
     @property
     def ready(self):
@@ -135,17 +169,16 @@ class BaseInstructions:
         return satisfied - self.completed
 
 class SingleInstructions(BaseInstructions):
+    def __repr__(self):
+        return '<{self.__class__.__name__} completed {0}>'.format(
+            'none' if self.completed is None else len(self.completed),
+            self=self
+        )
+    
     def __next__(self):
         'The step that should be executed next.'
         
-        ready = self.ready
-        
-        if len(ready) == 0:
-            raise StopIteration
-        elif len(ready) == 1:
-            current = ready.pop()
-        else:
-            current = sorted(ready, key=lambda x: x.name)[0]
+        current = self.next_step
         
         self.completed.add(current)
         
@@ -156,9 +189,57 @@ class MultiInstructions(BaseInstructions):
         super().__init__(steps)
         
         self.workers = workers
+        self.working = None
+    
+    def __repr__(self):
+        return '<{self.__class__.__name__} completed {0}, working on {1}>'.format(
+            'none' if self.completed is None else len(self.completed),
+            'none' if self.working is None else len(self.working),
+            self=self
+        )
     
     def __iter__(self):
-        pass
+        self.working = set()
+        
+        return super().__iter__()
     
     def __next__(self):
-        pass
+        'The steps that just finished and the time elapsed since last time.'
+        
+        self.start_next()
+        
+        maybe_result = self.complete_shortest_working()
+        
+        if maybe_result:
+            return maybe_result
+        else:
+            #if no steps completed, we're done
+            raise StopIteration
+    
+    def start_next(self):
+        if self.ready:
+            #start next step(s)
+            number_of_available_workers = self.workers - len(self.working)
+            
+            if number_of_available_workers:
+                next_steps = self.next_steps
+                
+                self.working |= set(next_steps[:number_of_available_workers])
+    
+    def complete_shortest_working(self):
+        if self.working:
+            #complete the shortest working step(s), yield, and progress other working steps
+            min_remaining_duration = min(x.remaining_duration for x in self.working)
+            steps_to_complete = {x for x in self.working if x.remaining_duration == min_remaining_duration}
+            
+            self.working -= steps_to_complete
+            self.completed |= steps_to_complete
+            
+            for step in self.working:
+                step.remaining_duration -= min_remaining_duration
+            
+            return steps_to_complete, min_remaining_duration
+    
+    @property
+    def ready(self):
+        return super().ready - self.working
