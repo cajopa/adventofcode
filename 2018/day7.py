@@ -23,7 +23,7 @@ def common_part(data=None, test=False):
     #second pass hooks them up
     for pre, con in raw_instructions:
         steps[pre].consequents.add(steps[con])
-        steps[con].consequents.add(steps[pre])
+        steps[con].predicates.add(steps[pre])
     
     return Instructions(steps.values())
 
@@ -34,7 +34,7 @@ def part1(data=None, test=False):
     If more than one step is ready, choose the step which is first alphabetically.
     '''
     
-    return common_part(data, test).walk()
+    return iter(common_part(data, test))
 
 def part2(data=None, test=False):
     pass
@@ -57,6 +57,7 @@ class Instructions:
         self.steps = set()
         
         self.current = None
+        self.pending = set()
         
         for step in steps:
             step.instructions = self
@@ -66,21 +67,50 @@ class Instructions:
         return f'<{self.__class__.__name__} @{self.current}>'
     __str__=__repr__
     
+    def __iter__(self):
+        self.current = self.root
+        
+        return self
+    
+    def __next__(self):
+        'The step that should be executed next.'
+        
+        ready = self.ready
+        
+        if len(ready) == 0:
+            raise StopIteration
+        elif len(ready) == 1:
+            self.current = ready.pop()
+        else:
+            self.current = sorted(ready, key=lambda x: x.name)[0]
+            
+            self.pending |= ready
+        
+        self.pending -= {self.current}
+        
+        return self.current
+    
+    def __getitem__(self, key):
+        try:
+            return next(x for x in self.steps if x.name == key)
+        except:
+            raise KeyError(key)
+    
     @property
     def root(self):
         'Assumes only one root.'
-        pass
+        
+        candidates = [x for x in self.steps if not x.predicates]
+        
+        if len(candidates) == 0:
+            raise Exception('Root not found!')
+        elif len(candidates) == 1:
+            return candidates[0]
+        else:
+            raise Exception(f'Too many roots found! {candidates}')
     
     @property
     def ready(self):
         'The steps that are ready to be executed.'
-        pass
-    
-    @property
-    def next(self):
-        'The step that should be executed next.'
-        pass
-    
-    def walk(self):
-        'Start at the root and yield steps in order.'
-        pass
+        
+        return self.current.consequents | self.pending
