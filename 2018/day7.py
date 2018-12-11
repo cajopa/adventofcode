@@ -105,23 +105,21 @@ class Instructions:
         self._current = value
     
     @property
-    def root(self):
-        'Assumes only one root.'
+    def roots(self):
+        'Find nodes with no parents.'
         
-        candidates = [x for x in self.steps if not x.predicates]
+        candidates = {x for x in self.steps if not x.predicates}
         
         if len(candidates) == 0:
             raise Exception('Root not found!')
-        elif len(candidates) == 1:
-            return candidates[0]
         else:
-            raise Exception(f'Too many roots found! {candidates}')
+            return candidates
     
     @property
     def preroot(self):
         'A virtual node that acts as a starting point for walking.'
         
-        return Step(None, consequents=[self.root])
+        return Step(None, consequents=self.roots)
     
     @property
     def ready(self):
