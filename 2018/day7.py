@@ -1,3 +1,5 @@
+from functools import reduce
+import operator as op
 import re
 
 
@@ -56,8 +58,8 @@ class Instructions:
     def __init__(self, steps):
         self.steps = set()
         
-        self.current = None
-        self.pending = set()
+        self._current = None
+        self.completed = None
         
         for step in steps:
             step.instructions = self
@@ -68,7 +70,8 @@ class Instructions:
     __str__=__repr__
     
     def __iter__(self):
-        self.current = self.root
+        self.completed = set()
+        self.current = self.preroot
         
         return self
     
@@ -83,10 +86,6 @@ class Instructions:
             self.current = ready.pop()
         else:
             self.current = sorted(ready, key=lambda x: x.name)[0]
-            
-            self.pending |= ready
-        
-        self.pending -= {self.current}
         
         return self.current
     
@@ -95,6 +94,15 @@ class Instructions:
             return next(x for x in self.steps if x.name == key)
         except:
             raise KeyError(key)
+    
+    @property
+    def current(self):
+        return self._current
+    
+    @current.setter
+    def current(self, value):
+        self.completed.add(value)
+        self._current = value
     
     @property
     def root(self):
@@ -110,7 +118,19 @@ class Instructions:
             raise Exception(f'Too many roots found! {candidates}')
     
     @property
-    def ready(self):
-        'The steps that are ready to be executed.'
+    def preroot(self):
+        'A virtual node that acts as a starting point for walking.'
         
-        return self.current.consequents | self.pending
+        return Step(None, consequents=[self.root])
+    
+    @property
+    def ready(self):
+        '''
+        The steps that are ready to be executed.
+        All predicates must be satisfied for a node to be ready.
+        '''
+        
+        candidates = reduce(op.or_, (x.consequents for x in self.completed))
+        satisfied = {x for x in candidates if x.predicates <= self.completed}
+        
+        return satisfied - self.completed
