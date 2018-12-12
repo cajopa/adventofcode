@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from itertools import cycle
+from itertools import cycle, chain
 import re
 
 
@@ -65,40 +65,47 @@ class Field:
         self.player_scores = None
         self.ring = None
         self.current_iter = None
-        self.current_position = None
+        self.position = None
+        self.round = None
     
     def __iter__(self):
         #pre-assign players to marbles
         self.current_iter = zip(cycle(range(self.player_quantity)), range(1, self.marble_quantity+1))
-        self.current_position = 0
+        self.position = 0
+        self.round = 0
         self.ring = Ring([0])
         self.player_scores = [0]*self.player_quantity
         
         return self
     
     def __next__(self):
-        for i in range(1,24):
-            ### NOTE: can throw StopIteration - it's fine for that to bubble up
-            player, marble = next(self.current_iter)
+        self.round += 1
+        
+        ### NOTE: can throw StopIteration - it's fine for that to bubble up
+        player, marble = next(self.current_iter)
+        
+        #However, if the marble that is about to be placed has a number which is a multiple of 23, something entirely different happens.
+        if self.round % 23 == 0:
+            #First, the current player keeps the marble they would have placed, adding it to their score.
+            self.player_scores[player] += marble
+            print(f'player {player} keeps marble #{marble} @{self.position}')
             
-            if len(self.ring) == 1:
-                ### TODO: why does this need special casing? There is an edge case somewhere.
-                self.ring.append(marble)
-                self.current_position = 1
-            #However, if the marble that is about to be placed has a number which is a multiple of 23, something entirely different happens.
-            elif i % 23 == 0:
-                #First, the current player keeps the marble they would have placed, adding it to their score.
-                self.player_scores[player] += marble
-                
-                #In addition, the marble 7 marbles counter-clockwise from the current marble is removed from the circle and also added to the current player's score.
-                self.player_scores[player] += self.ring.pop(self.current_position - 7)
-                
-                #The marble located immediately clockwise of the marble that was removed becomes the new current marble.
-                self.current_position -= 7
-            else:
-                #Each Elf takes a turn placing the lowest-numbered remaining marble into the circle between the marbles that are 1 and 2 marbles clockwise of the current marble.
-                #The marble that was just placed then becomes the current marble.
-                self.current_position = self.ring.insert(self.current_position + 2, marble)
+            #In addition, the marble 7 marbles counter-clockwise from the current marble is removed from the circle and also added to the current player's score.
+            # self.player_scores[player] += self.ring.pop(self.position - 7)
+            popped_marble = self.ring.pop(self.position - 7)
+            self.player_scores[player] += popped_marble
+            print(f'player {player} also gets marble #{popped_marble} @{self.position - 7}')
+            
+            #The marble located immediately clockwise of the marble that was removed becomes the new current marble.
+            ### NOTE: position needs to be relative to the *previous* length of the ring
+            self.position = (self.position - 7) % (len(self.ring) + 1)
+        else:
+            #Each Elf takes a turn placing the lowest-numbered remaining marble into the circle between the marbles that are 1 and 2 marbles clockwise of the current marble.
+            self.ring.insert(self.position + 2, marble)
+            
+            #The marble that was just placed then becomes the current marble.
+            ### NOTE: position needs to be relative to the *previous* length of the ring
+            self.position = (self.position + 2) % (len(self.ring) - 1)
         
         return self
 
@@ -115,15 +122,27 @@ class Ring(list):
         
         return super().__getitem__(index)
     
+    def __add__(self, other):
+        return self.__class__(chain(self, other))
+    
     def insert(self, index, value):
-        index %= len(self)
-        
-        super().insert(index, value)
-        
-        return index
+        super().insert(index % len(self), value)
     
     def pop(self, index):
         return super().pop(index % len(self))
+    
+    def rotate(self, distance):
+        '''
+        Negative distance is leftward, positive is rightward.
+        '''
+        
+        if distance == 0:
+            return self.__class__(self)
+        else:
+            return self[-distance:] + self[:-distance]
+    
+    def align(self, target):
+        return self.rotate(-self.index(target))
 
 
 if __name__=='__main__':
