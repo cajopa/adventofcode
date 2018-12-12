@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from itertools import cycle
 import re
 
 
@@ -20,16 +21,22 @@ def load(input_filename):
         
         return int(match.group('players')), int(match.group('maxpoints'))
 
-def common_part(data=None, test=None):
-    data = data or (load('input/9') if test is None else TEST_DATA[test])
+def common_part(data=None):
+    players, maxpoints = data or load('input/9')
     
-    pass
+    return Field(players, maxpoints)
 
-def part1(data=None, test=None):
+def part1(data=None):
     '''
+    What is the winning Elf's score?
     '''
     
-    players, maxpoints = data
+    field = common_part(data=data)
+    
+    #plays the game
+    list(field)
+    
+    return max(field.player_scores)
 
 def test1():
     passed = []
@@ -45,30 +52,78 @@ def test1():
     
     return passed, failed
 
-def part2(data=None, workers=None, base_duration=None, test=None):
+def part2(data=None):
     '''
     '''
 
 
 class Field:
     def __init__(self, player_quantity, marble_quantity):
-        self.player_scores = [0]*player_quantity
+        self.player_quantity = player_quantity
         self.marble_quantity = marble_quantity
         
-        self.ring = Ring(0)
+        self.player_scores = None
+        self.ring = None
+        self.current_iter = None
+        self.current_position = None
     
     def __iter__(self):
-        pass
+        #pre-assign players to marbles
+        self.current_iter = zip(cycle(range(self.player_quantity)), range(1, self.marble_quantity+1))
+        self.current_position = 0
+        self.ring = Ring([0])
+        self.player_scores = [0]*self.player_quantity
+        
+        return self
     
     def __next__(self):
-        pass
+        for i in range(1,24):
+            ### NOTE: can throw StopIteration - it's fine for that to bubble up
+            player, marble = next(self.current_iter)
+            
+            if len(self.ring) == 1:
+                ### TODO: why does this need special casing? There is an edge case somewhere.
+                self.ring.append(marble)
+                self.current_position = 1
+            #However, if the marble that is about to be placed has a number which is a multiple of 23, something entirely different happens.
+            elif i % 23 == 0:
+                #First, the current player keeps the marble they would have placed, adding it to their score.
+                self.player_scores[player] += marble
+                
+                #In addition, the marble 7 marbles counter-clockwise from the current marble is removed from the circle and also added to the current player's score.
+                self.player_scores[player] += self.ring.pop(self.current_position - 7)
+                
+                #The marble located immediately clockwise of the marble that was removed becomes the new current marble.
+                self.current_position -= 7
+            else:
+                #Each Elf takes a turn placing the lowest-numbered remaining marble into the circle between the marbles that are 1 and 2 marbles clockwise of the current marble.
+                #The marble that was just placed then becomes the current marble.
+                self.current_position = self.ring.insert(self.current_position + 2, marble)
+        
+        return self
 
 class Ring(list):
-    def __getitem__(self, key):
-        if key < 0:
-            key += len(self)
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            ### IMPORTANT: known issue where the slice would wrap around the end
+            start = index.start and (index.start % len(self))
+            stop = index.stop and (index.stop % len(self))
+            
+            index = slice(start, stop, index.step)
+        else:
+            index %= len(self)
         
-        return super().__getitem__(key)
+        return super().__getitem__(index)
+    
+    def insert(self, index, value):
+        index %= len(self)
+        
+        super().insert(index, value)
+        
+        return index
+    
+    def pop(self, index):
+        return super().pop(index % len(self))
 
 
 if __name__=='__main__':
