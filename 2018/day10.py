@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from itertools import product
 import re
 
 from geometry import Point as PointBase, Vector, Grid as GridBase
