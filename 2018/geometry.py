@@ -19,6 +19,9 @@ class Vector:
         
         return self.__class__(self.x + other.x, self.y + other.y)
     
+    def __sub__(self, other):
+        return self + -1 * other
+    
     def __rmul__(self, other):
         if isinstance(other, Number):
             return self.__class__(self.x * other, self.y * other)
