@@ -54,7 +54,22 @@ def test1():
 
 def part2(data=None):
     '''
+    What would the new winning Elf's score be if the number of the last marble were 100 times larger?
+    
+    Different interpretations of this question exist:
+      - only the last marble changes, value is 100*x             NO - MANUALLY TESTED
+      - only the last marble changes, value is 101*x (large*r*)  NO - MANUALLY TESTED
+      - the size of the marble pool is 100*l <================== THIS ONE
+      - the size of the marble pool is 101*l (large*r*)
     '''
+    
+    field = common_part(data=data)
+    
+    field.marble_quantity *= 100
+    
+    list(field)
+    
+    return max(field.player_scores) #returns 3338341690 (takes forever to run currently)
 
 
 class Field:
@@ -88,13 +103,13 @@ class Field:
         if self.round % 23 == 0:
             #First, the current player keeps the marble they would have placed, adding it to their score.
             self.player_scores[player] += marble
-            print(f'player {player} keeps marble #{marble} @{self.position}')
+            # print(f'player {player} keeps marble #{marble} @{self.position}')
             
             #In addition, the marble 7 marbles counter-clockwise from the current marble is removed from the circle and also added to the current player's score.
-            # self.player_scores[player] += self.ring.pop(self.position - 7)
-            popped_marble = self.ring.pop(self.position - 7)
-            self.player_scores[player] += popped_marble
-            print(f'player {player} also gets marble #{popped_marble} @{self.position - 7}')
+            self.player_scores[player] += self.ring.pop(self.position - 7)
+            # popped_marble = self.ring.pop(self.position - 7)
+            # self.player_scores[player] += popped_marble
+            # print(f'player {player} also gets marble #{popped_marble} @{self.position - 7}')
             
             #The marble located immediately clockwise of the marble that was removed becomes the new current marble.
             ### NOTE: position needs to be relative to the *previous* length of the ring
