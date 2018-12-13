@@ -63,18 +63,36 @@ class Grid(GridBase):
         self.points = value
     
     @property
+    def min_x(self):
+        return min(x.x for x in self.dots)
+    
+    @property
+    def max_x(self):
+        return max(x.x for x in self.dots)
+    
+    @property
+    def min_y(self):
+        return min(x.y for x in self.dots)
+    
+    @property
+    def max_y(self):
+        return max(x.y for x in self.dots)
+    
+    @property
+    def width(self):
+        return self.max_x - self.min_x
+    
+    @property
+    def height(self):
+        return self.max_y - self.min_y
+    
+    @property
     def x_range(self):
-        minx = int(min(x.x for x in self.dots))
-        maxx = int(max(x.x for x in self.dots))
-        
-        return range(minx, maxx + 1)
+        return range(int(self.min_x), int(self.max_x) + 1)
     
     @property
     def y_range(self):
-        miny = int(min(x.y for x in self.dots))
-        maxy = int(max(x.y for x in self.dots))
-        
-        return range(miny, maxy + 1)
+        return range(int(self.min_y), int(self.max_y) + 1)
     
     @property
     def cohesion(self):
@@ -92,28 +110,47 @@ class Grid(GridBase):
         find the most cohesive future self
         
         cohesion is not guaranteed to be monotonic over time - build in some overshoot
+        
+        evaluating cohesion takes almost 10000x (601 ms ± 1.61 ms  vs  63.4 ns ± 0.184 ns) the time
+         as incrementing, so skip as much as seems reasonable before starting to rate cohesion
+           - assuming an average character width of (3+8)/2 (I and W), height of 8, and inter-character space of 2,
+              and that the letters are all on one line, the width of the message will be about
+              w = ((3+8)/2 + 2) * n - 2 = 7.5 * n - 2 ~= 7.5 * n ~= 10 * n
+           - assuming about 20 dots per character (H is 19, I is 12), n = L/20
+           - so w ~= L / 2
         '''
         
+        return self.zoom_in(len(self.dots))._convergent_future
+    
+    @property
+    def _convergent_future(self):
         max_cohesion = 0
         best_future = None
         overshoot = 10
         
-        for i,future_grid in enumerate(self.iterate()):
+        # for i,future_grid in enumerate(self.iterate()):
+        for future_grid in self.iterate():
             cohesion = future_grid.cohesion
             
             if cohesion > max_cohesion:
-                print('o', end='', flush=True)
+                # print('o', end='', flush=True)
                 max_cohesion = cohesion
                 best_future = future_grid
                 overshoot = 10
             elif cohesion < max_cohesion:
-                print('-', end='', flush=True)
                 if overshoot:
+                    # print('-', end='', flush=True)
                     overshoot -= 1
                 else:
+                    print()
                     return best_future
-            else:
-                print('.', end='', flush=True)
+            # else:
+                # print('.', end='', flush=True)
+    
+    def zoom_in(self, size):
+        for future_grid in self.iterate():
+            if future_grid.width <= size or future_grid.height <= size:
+                return future_grid
     
     def iterate(self, direction=1):
         current = self
