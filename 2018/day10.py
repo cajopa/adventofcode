@@ -33,7 +33,14 @@ def part1(data=None):
     return str(common_part(data=data).convergent_future)
 
 def part2(data=None):
-    ''
+    '''
+    Exactly how many seconds would they have needed to wait for that message to appear?
+    '''
+    
+    present_grid = common_part(data=data)
+    future_grid = present_grid.convergent_future
+    
+    return (future_grid[0].position - present_grid[0].position).magnitude / present_grid[0].velocity.magnitude
 
 
 class Grid(GridBase):
@@ -148,6 +155,7 @@ class Grid(GridBase):
                 # print('.', end='', flush=True)
     
     def zoom_in(self, size):
+        ###TODO: this can be made even faster by calculating the minimum time each dot would take to get inside a box bounded by (0,0), (size,size)
         for future_grid in self.iterate():
             if future_grid.width <= size or future_grid.height <= size:
                 return future_grid
@@ -177,7 +185,7 @@ class Point(PointBase):
 
 class NullPoint(PointBase):
     def __str__(self):
-        return '.'
+        return ' '
 
 class Dot:
     def __init__(self, position, velocity):
