@@ -80,9 +80,11 @@ class Grid(GridBase):
     def cohesion(self):
         '''
         ratio of points that touch other points, including diagonal
+        
+        orthogonal neighbors weighted double
         '''
         
-        return sum(1 for dot in self.dots if dot.has_neighbor) / len(self.dots)
+        return sum(x.neighbor_score for x in self.dots) / len(self.dots)
     
     @property
     def convergent_future(self):
@@ -139,9 +141,28 @@ class Dot:
     
     @property
     def has_neighbor(self):
-        neighbor_offsets = set(product([-1,0,1], repeat=2)) - {(0,0)}
+        return self.has_orthogonal_neighbor or self.has_diagonal_neighbor
+    
+    @property
+    def has_diagonal_neighbor(self):
+        neighbor_offsets = [(-1,-1), (-1,1), (1,-1), (1,1)]
         
         return any((Point(*x) + self.position) in self.grid for x in neighbor_offsets)
+    
+    @property
+    def has_orthogonal_neighbor(self):
+        neighbor_offsets = [(-1,0), (1,0), (0,-1), (0,1)]
+        
+        return any((Point(*x) + self.position) in self.grid for x in neighbor_offsets)
+    
+    @property
+    def neighbor_score(self):
+        if self.has_orthogonal_neighbor:
+            return 1
+        elif self.has_diagonal_neighbor:
+            return 0.5
+        else:
+            return 0
     
     @property
     def x(self):
