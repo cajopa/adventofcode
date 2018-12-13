@@ -11,24 +11,27 @@ def run_as_script(part1, test_data1, part2, test_data2):
     args = parser.parse_args()
 
     if args.part == 1:
-        if args.test:
-            passed, failed = test(part1, test_data1)
-            
-            print(f'passed: {pformat(passed)}')
-            print(f'failed:\n{pformat(failed, indent=2)}')
-        else:
-            print(part1())
+        function = part1
+        test_data = test_data1
     elif args.part == 2:
-        if args.test:
-            passed, failed = test(part2, test_data2)
-            
-            print(f'passed: {pformat(passed)}')
-            print(f'failed:\n{pformat(failed, indent=2)}')
-        else:
-            print(part2())
+        function = part2
+        test_data = test_data2
     else:
         print(f'invalid part {args.part}', file=sys.stderr)
-        sys.exit(1)
+        sys.exit(-1)
+    
+    if args.test:
+        passed, failed = test(function, test_data)
+        
+        if failed:
+            print(f'passed: {pformat(passed)}')
+            print(f'failed:\n{pformat(failed, indent=2)}')
+        else:
+            print('Everything is golden, my dude.')
+        
+        sys.exit(len(failed))
+    else:
+        print(function())
 
 def test(function, test_data):
     passed = []
