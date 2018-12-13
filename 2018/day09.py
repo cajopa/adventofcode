@@ -3,6 +3,8 @@
 from itertools import cycle, chain
 import re
 
+from util import run_as_script
+
 
 TEST_DATA = {
     (9,25): 32,
@@ -37,20 +39,6 @@ def part1(data=None):
     list(field)
     
     return max(field.player_scores)
-
-def test1():
-    passed = []
-    failed = {}
-    
-    for k,v in TEST_DATA.items():
-        actual_value = part1(k)
-        
-        if actual_value == v:
-            passed.append(k)
-        else:
-            failed[k] = (v, actual_value)
-    
-    return passed, failed
 
 def part2(data=None):
     '''
@@ -161,32 +149,4 @@ class Ring(list):
 
 
 if __name__=='__main__':
-    from pprint import pformat
-    import argparse
-    import sys
-    
-    parser = argparse.ArgumentParser()
-    parser.add_argument('part', type=int, help='which part to run')
-    parser.add_argument('--test', action='store_true', help='run in test mode')
-    
-    args = parser.parse_args()
-    
-    if args.part == 1:
-        if args.test:
-            passed, failed = test1()
-            
-            print(f'passed: {pformat(passed)}')
-            print(f'failed:\n{pformat(failed, indent=2)}')
-        else:
-            print(part1())
-    elif args.part == 2:
-        if args.test:
-            passed, failed = test2()
-            
-            print(f'passed: {pformat(passed)}')
-            print(f'failed:\n{pformat(failed, indent=2)}')
-        else:
-            print(part2())
-    else:
-        print(f'invalid part {args.part}', file=sys.stderr)
-        sys.exit(1)
+    run_as_script(part1, TEST_DATA, part2, {})
