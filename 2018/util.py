@@ -35,7 +35,7 @@ def test(function, test_data):
     failed = {}
     
     for k,v in test_data.items():
-        actual_value = part1(k)
+        actual_value = function(k)
         
         if actual_value == v:
             passed.append(k)
