@@ -1,3 +1,6 @@
+from numbers import Number
+
+
 class Vector:
     def __init__(self, x, y):
         self.x = x
@@ -8,13 +11,19 @@ class Vector:
     __str__=__repr__
     
     def __eq__(self, other):
-        return isinstance(other, Vector) and self.x == other.x and self.y == other.y
+        return isinstance(other, Vector) and (self.x, self.y) == (other.x, other.y)
     
     def __add__(self, other):
         if not isinstance(other, Vector):
             raise ValueError('other must be a Vector')
         
         return self.__class__(self.x + other.x, self.y + other.y)
+    
+    def __rmul__(self, other):
+        if isinstance(other, Number):
+            return self.__class__(self.x * other, self.y * other)
+        else:
+            return NotImplemented
     
     @property
     def normalized(self):
@@ -234,7 +243,9 @@ class Grid:
     def __getitem__(self, key):
         if isinstance(key, str):
             return next(x for x in self.points if x.name == key)
+        elif isinstance(key, tuple):
+            return next(x for x in self.points if (x.x, x.y) == key)
         elif isinstance(key, int):
             return self.points[key]
         else:
-            return next(x for x in self.points if x.x == key.x and x.y == key.y)
+            return next(x for x in self.points if x == key)
