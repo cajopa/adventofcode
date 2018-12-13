@@ -88,25 +88,48 @@ class Grid(GridBase):
     
     @property
     def convergent_future(self):
-        max_cohesion = 0
+        '''
+        find the most cohesive future self
         
-        for future_grid in self.iterate():
+        cohesion is not guaranteed to be monotonic over time - build in some overshoot
+        '''
+        
+        max_cohesion = 0
+        best_future = None
+        overshoot = 10
+        
+        for i,future_grid in enumerate(self.iterate()):
             cohesion = future_grid.cohesion
             
             if cohesion > max_cohesion:
+                print('o', end='', flush=True)
                 max_cohesion = cohesion
+                best_future = future_grid
+                overshoot = 10
             elif cohesion < max_cohesion:
-                return future_grid
+                print('-', end='', flush=True)
+                if overshoot:
+                    overshoot -= 1
+                else:
+                    return best_future
+            else:
+                print('.', end='', flush=True)
     
     def iterate(self, direction=1):
+        current = self
+        
         while True:
-            self.increment(direction/abs(direction)) ###NOTE: this would be cleaner but less performant if we returned a copy
+            current = current.increment(direction/abs(direction))
             
-            yield self
+            yield current
     
     def increment(self, amount=1):
-        for dot in self.dots:
+        to_return = self.copy()
+        
+        for dot in to_return.dots:
             dot.increment(amount)
+        
+        return to_return
     
     def copy(self):
         return self.__class__(x.copy() for x in self.dots)
@@ -114,9 +137,6 @@ class Grid(GridBase):
 class Point(PointBase):
     def __str__(self):
         return '#'
-    
-    def copy(self):
-        return self.__class__(self.x, self.y, name=self.name)
 
 class NullPoint(PointBase):
     def __str__(self):
@@ -174,6 +194,9 @@ class Dot:
     
     def increment(self, amount=1):
         self.position += amount * self.velocity
+    
+    def copy(self):
+        return self.__class__(self.position.copy(), self.velocity.copy())
 
 
 if __name__=='__main__':

@@ -52,6 +52,9 @@ class Vector:
     
     def angle_between(self, other):
         return math.acos(self.dot_product(other) / self.magnitude / other.magnitude)
+    
+    def copy(self):
+        return self.__class__(self.x, self.y)
 
 class Point(Vector):
     def __init__(self, x, y, name=None):
@@ -80,6 +83,9 @@ class Point(Vector):
     
     def distance_to(self, other):
         return abs(self.x - other.x) + abs(self.y - other.y)
+    
+    def copy(self):
+        return self.__class__(self.x, self.y, name=self.name)
 
 class LineSegment:
     def __init__(self, start, end):
