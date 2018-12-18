@@ -116,11 +116,12 @@ class Grid:
         
         for topleft_x in range(300-size+1):
             for topleft_y in range(300-size+1):
-                yield Subgrid((topleft_x+1, topleft_y+1), (self[x, y] for x,y in product(range(topleft_x, topleft_x+size), range(topleft_y, topleft_y+size))))
+                yield Subgrid((topleft_x+1, topleft_y+1), size, (self[x, y] for x,y in product(range(topleft_x, topleft_x+size), range(topleft_y, topleft_y+size))))
 
 class Subgrid:
-    def __init__(self, coordinates, fuel_cells):
+    def __init__(self, coordinates, size, fuel_cells):
         self.coordinates = coordinates
+        self.size = size
         self.fuel_cells = list(fuel_cells)
     
     @property
