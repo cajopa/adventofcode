@@ -1,6 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env pypy3
 
 from itertools import product, chain
+from time import time
 
 from kids.cache import cache
 
@@ -61,19 +62,50 @@ def part2(data=None):
     
     grid = common_part(data=data)
     
-    the_winner = max(grid.all_subgrids, key=lambda x: x.total_power)
-    
-    return the_winner.coordinates, the_winner.total_power, the_winner.size
+    return max(grid.all_subgrid_scores, key=lambda x: x[2])
 
 
-class Grid:
-    def __init__(self, serial_number):
-        self.fuel_cells = [self.calculate_power_level(x, y, serial_number) for x,y in product(range(300), repeat=2)]
+class GridBase:
+    def __init__(self):
+        self.size = 300
     
     def __getitem__(self, key):
         x,y = key
         
-        return self.fuel_cells[x*300 + y]
+        return self.fuel_cells[x*self.size + y]
+    
+    @property
+    def all_subgrids(self):
+        'iterator for all NxN subgrids'
+        
+        return chain.from_iterable(self._subgrids(n) for n in range(1, self.size + 1))
+    
+    @property
+    def all_subgrid_scores(self):
+        for size in range(1, self.size + 1):
+            yield from ((x.coordinates, size, x.total_power) for x in self._subgrids(size))
+    
+    def _subgrids(self, size):
+        print(f'evaluating subgrids of size {size}x{size}...', end='')
+        
+        start_time = time()
+        
+        for topleft_x in range(300-size+1):
+            for topleft_y in range(300-size+1):
+                yield Subgrid((topleft_x+1, topleft_y+1), size, (self[x, y] for x,y in product(range(topleft_x, topleft_x+size), range(topleft_y, topleft_y+size))))
+        
+        end_time = time()
+        
+        print(f'took {end_time - start_time}s')
+        
+        Subgrid.prune_cache(size - 1)
+
+
+class Grid(GridBase):
+    def __init__(self, serial_number):
+        super().__init__()
+        
+        self.fuel_cells = [self.calculate_power_level(x, y, serial_number) for x,y in product(range(300), repeat=2)]
     
     @classmethod
     def calculate_power_level(cls, x, y, serial_number):
@@ -104,21 +136,10 @@ class Grid:
         'iterator for 3x3 subgrids'
         
         return self._subgrids(3)
-    
-    @property
-    def all_subgrids(self):
-        'iterator for all NxN subgrids'
-        
-        return chain.from_iterable(self._subgrids(n) for n in range(1,301))
-    
-    def _subgrids(self, size):
-        print(f'evaluating subgrids of size {size}x{size}')
-        
-        for topleft_x in range(300-size+1):
-            for topleft_y in range(300-size+1):
-                yield Subgrid((topleft_x+1, topleft_y+1), size, (self[x, y] for x,y in product(range(topleft_x, topleft_x+size), range(topleft_y, topleft_y+size))))
 
-class Subgrid:
+class Subgrid(GridBase):
+    power_cache = {}
+    
     def __init__(self, coordinates, size, fuel_cells):
         self.coordinates = coordinates
         self.size = size
@@ -126,65 +147,39 @@ class Subgrid:
     
     @property
     def total_power(self):
-        return sum(self.fuel_cells)
-
-
-# class Grid(GridBase):
-#     def __init__(self, serial_number):
-#         super().__init__(FuelCell(x,y,serial_number) for x,y in product(range(300), repeat=2))
+        if self.size == 1:
+            to_return = self.fuel_cells[0]
+        else:
+            #uses the one-smaller subgrid rooted at the same location and fills with singles
+            # time complexity O(2*n)
+            
+            to_return = (
+                self.subgrid(self.coordinates[0], self.coordinates[1], self.size-1) +
+                sum(self[x,self.size-1] for x in range(self.size-1)) +
+                sum(self[self.size-1,y] for y in range(self.size-1)) +
+                self[self.size-1, self.size-1]
+            )
+        
+        self.power_cache[self.coordinates, self.size] = to_return
+        
+        return to_return
     
-#     @property
-#     def subgrids(self):
-#         'iterator for 3x3 subgrids'
+    @classmethod
+    def prune_cache(cls, maxsize):
+        to_delete = [(c,s) for c,s in cls.power_cache.keys() if s < maxsize]
         
-#         ### NOTE: it's ok (and good) that the points passed to Subgrid aren't copies
-        
-#         for topleft_x in range(300-2):
-#             for topleft_y in range(300-2):
-#                 yield Subgrid((self.points_by_coords[x] for x in product(range(topleft_x, topleft_x+3), range(topleft_y, topleft_y+3))))
+        for k in to_delete:
+            del cls.power_cache[k]
     
-#     def parentify_points(self):
-#         pass ### intentional
-
-# class Subgrid(GridBase):
-#     @cache(key=id)
-#     @property
-#     def total_power(self):
-#         return sum(x.power_level for x in self.points)
-    
-#     @property
-#     def coordinates(self):
-#         'Identify this square using the X,Y coordinate of its top-left fuel cell.'
+    def subgrid(self, left, top, size):
+        key = ((left,top), size)
         
-#         return Point(min(x.x for x in self.points), min(x.y for x in self.points))
-    
-#     def parentify_points(self):
-#         pass ### intentional
-
-# class FuelCell(Point):
-#     def __init__(self, x, y, serial_number):
-#         super().__init__(x, y)
-        
-#         self.rack_id = x * 10
-#         self.power_level = self.calculate_power_level(serial_number)
-    
-#     def calculate_power_level(self, serial_number):
-#         #Begin with a power level of the rack ID times the Y coordinate.
-#         to_return = self.rack_id * self.y
-        
-#         #Increase the power level by the value of the grid serial number (your puzzle input).
-#         to_return += serial_number
-        
-#         #Set the power level to itself multiplied by the rack ID.
-#         to_return *= self.rack_id
-        
-#         #Keep only the hundreds digit of the power level (so 12345 becomes 3; numbers with no hundreds digit become 0).
-#         to_return = to_return // 100 % 10
-        
-#         #Subtract 5 from the power level.
-#         to_return -= 5
-        
-#         return to_return
+        if key in self.power_cache:
+            return self.power_cache[key]
+        else:
+            add_coords = lambda x,y: tuple(map(sum, zip(self.coordinates, (x,y))))
+            
+            return self.__class__(add_coords(left, top), size, [self[x,y] for x,y in product(range(left, left + size), range(top + size))])
 
 
 if __name__=='__main__':
