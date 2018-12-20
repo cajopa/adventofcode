@@ -35,7 +35,7 @@ def load(filename):
 def common_part(data, test):
     initial, rules = data or load('input/12.test' if test else 'input/12')
     
-    return Board(initial, rules)
+    return Cavern(initial, rules)
 
 def part1(data=None, test=False):
     '''
@@ -52,9 +52,9 @@ def part2(data=None, test=None):
     return reduce(lambda x,y: next(x), range(50*10**9), common_part(data, test)).score
 
 
-class Board:
-    def __init__(self, states, rules):
-        self.states = tuple(states)
+class Cavern:
+    def __init__(self, pots, rules):
+        self.pots = tuple(pots)
         self.rules = rules
         
         self.origin = 0
@@ -65,7 +65,7 @@ class Board:
     def __repr__(self):
         return '<{} {}>'.format(
             self.__class__.__name__,
-            ''.join(('X' if i==0 else '#') if x else ('o' if i==0 else '.') for i,x in zip(range(-self.origin, len(self.states) - self.origin), self.states))
+            ''.join(('X' if i==0 else '#') if x else ('o' if i==0 else '.') for i,x in zip(range(-self.origin, len(self.pots) - self.origin), self.pots))
         )
     
     def __str__(self):
@@ -77,24 +77,24 @@ class Board:
     def __next__(self):
         self.pad_states(4)
         
-        new_states = tuple(self.rules[tuple(self.states[i-2:i+3])] for i in range(2, len(self.states) - 3))
+        new_states = tuple(self.rules[tuple(self.pots[i-2:i+3])] for i in range(2, len(self.pots) - 3))
         stripped_new_states = self.strip_list(new_states)
         
         if stripped_new_states in self.history:
             cycle_length = len(self.history) - self.history.index(stripped_new_states)
             pass
         
-        self.states = new_states
+        self.pots = new_states
         
         print(self)
         
         return self
     
     def pad_states(self, size):
-        first_true = self.states.index(True)
-        last_true = list(reversed(self.states)).index(True)
+        first_true = self.pots.index(True)
+        last_true = list(reversed(self.pots)).index(True)
         
-        self.states = (False,)*size + self.states[first_true:len(self.states)-last_true] + (False,)*size
+        self.pots = (False,)*size + self.pots[first_true:len(self.pots)-last_true] + (False,)*size
         self.origin += size - first_true - 2
     
     @staticmethod
@@ -106,7 +106,7 @@ class Board:
     
     @property
     def score(self):
-        return sum(x * y for x,y in zip(range(-self.origin, len(self.states) - self.origin), self.states))
+        return sum(x * y for x,y in zip(range(-self.origin, len(self.pots) - self.origin), self.pots))
 
 
 if __name__=='__main__':
