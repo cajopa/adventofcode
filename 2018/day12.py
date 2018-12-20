@@ -126,7 +126,7 @@ class Cavern:
         #set origin to the future
         cycle_quantity, remaining_generations = divmod(generations - head_position, cycle_length)
         
-        self.origin += (cycle_quantity - 1) * origin_delta
+        self.origin += (cycle_quantity - 2) * origin_delta
         
         print(f'skipped {cycle_quantity*cycle_length} generations')
         print(self)
