@@ -1,5 +1,6 @@
 #!/usr/bin/env pypy3
 
+from functools import reduce
 import re
 
 from util import run_as_script
@@ -41,30 +42,23 @@ def part1(data=None, test=False):
     After 20 generations, what is the sum of the numbers of all pots which contain a plant?
     '''
     
-    board = common_part(data, test)
-    
-    [None for _ in zip(board, range(20-1))]
-    
-    return board.score
+    return reduce(lambda x,y: next(x), range(20), common_part(data, test)).score
 
 def part2(data=None, test=None):
     '''
     After fifty billion (50000000000) generations, what is the sum of the numbers of all pots which contain a plant?
     '''
     
-    board = common_part(data, test)
-    
-    [None for _ in zip(board, range(50*10**9-1))]
-    
-    return board.score
+    return reduce(lambda x,y: next(x), range(50*10**9), common_part(data, test)).score
 
 
 class Board:
     def __init__(self, states, rules):
-        self.states = list(states)
+        self.states = tuple(states)
         self.rules = rules
         
         self.origin = 0
+        self.history = []
         
         print(self)
     
@@ -83,13 +77,14 @@ class Board:
     def __next__(self):
         self.pad_states(4)
         
-        new_states = [self.rules[tuple(self.states[i-2:i+3])] for i in range(2, len(self.states) - 3)]
+        new_states = tuple(self.rules[tuple(self.states[i-2:i+3])] for i in range(2, len(self.states) - 3))
+        stripped_new_states = self.strip_list(new_states)
         
-        ### NOTE: This assumes that a state is reachable where it doesn't change. This logic does not handle cycles!
-        if self.strip_list(self.states) == self.strip_list(new_states):
-            raise StopIteration
-        else:
-            self.states = new_states
+        if stripped_new_states in self.history:
+            cycle_length = len(self.history) - self.history.index(stripped_new_states)
+            pass
+        
+        self.states = new_states
         
         print(self)
         
@@ -99,7 +94,7 @@ class Board:
         first_true = self.states.index(True)
         last_true = list(reversed(self.states)).index(True)
         
-        self.states = [False]*size + self.states[first_true:len(self.states)-last_true] + [False]*size
+        self.states = (False,)*size + self.states[first_true:len(self.states)-last_true] + (False,)*size
         self.origin += size - first_true - 2
     
     @staticmethod
