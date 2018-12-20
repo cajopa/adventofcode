@@ -43,13 +43,20 @@ def part1(data=None, test=False):
     
     board = common_part(data, test)
     
-    [next(board) for _ in range(20)]
+    [None for _ in zip(board, range(20-1))]
     
     return board.score
 
-def part2(data=None):
+def part2(data=None, test=None):
     '''
+    After fifty billion (50000000000) generations, what is the sum of the numbers of all pots which contain a plant?
     '''
+    
+    board = common_part(data, test)
+    
+    [None for _ in zip(board, range(50*10**9-1))]
+    
+    return board.score
 
 
 class Board:
@@ -76,7 +83,13 @@ class Board:
     def __next__(self):
         self.pad_states(4)
         
-        self.states = [self.rules[tuple(self.states[i-2:i+3])] for i in range(2, len(self.states) - 3)]
+        new_states = [self.rules[tuple(self.states[i-2:i+3])] for i in range(2, len(self.states) - 3)]
+        
+        ### NOTE: This assumes that a state is reachable where it doesn't change. This logic does not handle cycles!
+        if self.strip_list(self.states) == self.strip_list(new_states):
+            raise StopIteration
+        else:
+            self.states = new_states
         
         print(self)
         
@@ -88,6 +101,13 @@ class Board:
         
         self.states = [False]*size + self.states[first_true:len(self.states)-last_true] + [False]*size
         self.origin += size - first_true - 2
+    
+    @staticmethod
+    def strip_list(list_):
+        first_true = list_.index(True)
+        last_true = list(reversed(list_)).index(True)
+        
+        return list_[first_true:len(list_)-last_true]
     
     @property
     def score(self):
