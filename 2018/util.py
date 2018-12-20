@@ -6,7 +6,8 @@ import sys
 def run_as_script(part1, test_data1, part2, test_data2):
     parser = argparse.ArgumentParser()
     parser.add_argument('part', type=int, help='which part to run')
-    parser.add_argument('--test', action='store_true', help='run in test mode')
+    parser.add_argument('--test', '-t', action='store_true', help='run in test mode')
+    parser.add_argument('--debug', '-d', action='store_true', help='display debug messages')
 
     args = parser.parse_args()
 
@@ -19,6 +20,9 @@ def run_as_script(part1, test_data1, part2, test_data2):
     else:
         print(f'invalid part {args.part}', file=sys.stderr)
         sys.exit(-1)
+    
+    if args.debug:
+        function.__globals__['DEBUG'] = True
     
     if args.test:
         passed, failed = test(function, test_data)

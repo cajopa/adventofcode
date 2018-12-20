@@ -7,6 +7,9 @@ from util import run_as_script
 from datatypes import frozendict
 
 
+DEBUG = False
+
+
 def load(filename):
     with open(filename) as f:
         #initial state: #.#..#..###.###.#..###.#####...########.#...#####...##.#....#.####.#.#..#..#.#..###...#..#.#....##.
@@ -61,7 +64,8 @@ class Cavern:
         self.origin = 0
         self.history = {}
         
-        print(self)
+        if DEBUG:
+            print(self)
     
     def __repr__(self):
         return '<{} @{} {}>'.format(
@@ -79,7 +83,8 @@ class Cavern:
     def __next__(self):
         self.increment()
         
-        print(self)
+        if DEBUG:
+            print(self)
         
         return self
     
@@ -91,7 +96,9 @@ class Cavern:
             
             for i in range(remaining_generations):
                 self.increment()
-                print(self)
+                
+                if DEBUG:
+                    print(self)
         
         return self
     
@@ -99,7 +106,8 @@ class Cavern:
         for i in range(generations):
             self.increment()
             
-            print(self)
+            if DEBUG:
+                print(self)
             
             if self.pots in self.history:
                 return self.pots
@@ -128,8 +136,9 @@ class Cavern:
         
         self.origin += (cycle_quantity - 2) * origin_delta
         
-        print(f'skipped {cycle_quantity*cycle_length} generations')
-        print(self)
+        if DEBUG:
+            print(f'skipped {cycle_quantity*cycle_length} generations')
+            print(self)
         
         #return the quantity of remaining generations to brute force
         return remaining_generations
