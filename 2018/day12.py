@@ -77,7 +77,7 @@ class Cavern:
         return self
     
     def __next__(self):
-        self.pots = self.increment()
+        self.increment()
         
         print(self)
         
@@ -90,33 +90,35 @@ class Cavern:
             remaining_generations = self.skip_ahead(head_of_cycle, generations)
             
             for i in range(remaining_generations):
-                self.pots = self.increment()
+                self.increment()
+                print(self)
         
         return self
     
     def brute_force(self, generations):
         for i in range(generations):
-            self.pots = self.increment()
-            self.pad_and_prune(0)
+            self.increment()
             
             print(self)
             
             if self.pots in self.history:
                 return self.pots
             else:
-                self.history[self.pots] = (self.origin, len(self.history)-1)
+                self.history[self.pots] = (self.origin, len(self.history))
         
         return None
     
     def increment(self):
         self.pad_and_prune(4)
         
-        return (False, False) + tuple(self.rules[tuple(self.pots[i-2:i+3])] for i in range(2, len(self.pots) - 3)) + (False, False)
+        self.pots = (False, False) + tuple(self.rules[tuple(self.pots[i-2:i+3])] for i in range(2, len(self.pots) - 3)) + (False, False)
+        
+        self.pad_and_prune(0)
     
     def skip_ahead(self, head_of_cycle, generations):
         #calculate length of cycle
         head_origin, head_position = self.history[head_of_cycle]
-        cycle_length = len(self.history) - head_position - 1
+        cycle_length = len(self.history) - head_position
         
         #calculate change in origin from start to finish
         origin_delta = self.origin - head_origin
@@ -124,7 +126,10 @@ class Cavern:
         #set origin to the future
         cycle_quantity, remaining_generations = divmod(generations - head_position, cycle_length)
         
-        self.origin += cycle_quantity * cycle_length
+        self.origin += (cycle_quantity - 1) * origin_delta
+        
+        print(f'skipped {cycle_quantity*cycle_length} generations')
+        print(self)
         
         #return the quantity of remaining generations to brute force
         return remaining_generations
@@ -149,4 +154,12 @@ class Cavern:
 
 
 if __name__=='__main__':
-    run_as_script(part1, {load('input/12.test'): 325}, part2, None)
+    run_as_script(
+        part1,
+        {load('input/12.test'): 325},
+        part2,
+        {
+            load('input/12.test.2.1'): None,
+            load('input/12.test.2.2'): None,
+        }
+    )
