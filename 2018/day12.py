@@ -75,22 +75,41 @@ class Cavern:
         return self
     
     def __next__(self):
-        self.pad_states(4)
-        
-        new_states = tuple(self.rules[tuple(self.pots[i-2:i+3])] for i in range(2, len(self.pots) - 3))
-        stripped_new_states = self.strip_list(new_states)
-        
-        if stripped_new_states in self.history:
-            cycle_length = len(self.history) - self.history.index(stripped_new_states)
-            pass
-        
-        self.pots = new_states
+        self.pots = self.increment()
         
         print(self)
         
         return self
     
-    def pad_states(self, size):
+    def run(self, generations):
+        head_of_cycle = self.brute_force()
+        remaining_generations = self.skip_ahead(head_of_cycle, generations)
+        
+        for i in range(remaining_generations):
+            self.pots = self.increment()
+    
+    def brute_force(self):
+        while True:
+            new_pots = self.increment()
+            stripped_new_pots = self.strip_list(new_pots)
+            
+            if stripped_new_pots in self.history:
+                return stripped_new_pots
+            else:
+                self.history.append(stripped_new_pots)
+                self.pots = new_pots
+                
+                print(self)
+    
+    def increment(self):
+        self.pad_and_prune(4)
+        
+        return tuple(self.rules[tuple(self.pots[i-2:i+3])] for i in range(2, len(self.pots) - 3))
+    
+    def skip_ahead(self):
+        pass
+    
+    def pad_and_prune(self, size):
         first_true = self.pots.index(True)
         last_true = list(reversed(self.pots)).index(True)
         
