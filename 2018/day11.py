@@ -62,6 +62,7 @@ def part2(data=None):
     
     grid = common_part(data=data)
     
+    #NOTE: for INPUT=5468, part2 output is ((90, 101), 15, 119) and takes 4738.10987 seconds to complete under pypy3 6.0.0
     return max(grid.all_subgrid_scores, key=lambda x: x[2])
 
 
