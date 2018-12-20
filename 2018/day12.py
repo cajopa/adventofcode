@@ -42,14 +42,15 @@ def part1(data=None, test=False):
     After 20 generations, what is the sum of the numbers of all pots which contain a plant?
     '''
     
-    return reduce(lambda x,y: next(x), range(20), common_part(data, test)).score
+    # return reduce(lambda x,y: next(x), range(20), common_part(data, test)).score
+    return common_part(data, test).run(20).score
 
 def part2(data=None, test=None):
     '''
     After fifty billion (50000000000) generations, what is the sum of the numbers of all pots which contain a plant?
     '''
     
-    return reduce(lambda x,y: next(x), range(50*10**9), common_part(data, test)).score
+    return common_part(data, test).run(50*10**9).score
 
 
 class Cavern:
@@ -58,13 +59,14 @@ class Cavern:
         self.rules = rules
         
         self.origin = 0
-        self.history = []
+        self.history = {}
         
         print(self)
     
     def __repr__(self):
-        return '<{} {}>'.format(
+        return '<{} @{} {}>'.format(
             self.__class__.__name__,
+            self.origin,
             ''.join(('X' if i==0 else '#') if x else ('o' if i==0 else '.') for i,x in zip(range(-self.origin, len(self.pots) - self.origin), self.pots))
         )
     
@@ -82,39 +84,57 @@ class Cavern:
         return self
     
     def run(self, generations):
-        head_of_cycle = self.brute_force()
-        remaining_generations = self.skip_ahead(head_of_cycle, generations)
+        head_of_cycle = self.brute_force(generations)
         
-        for i in range(remaining_generations):
-            self.pots = self.increment()
-    
-    def brute_force(self):
-        while True:
-            new_pots = self.increment()
-            stripped_new_pots = self.strip_list(new_pots)
+        if head_of_cycle:
+            remaining_generations = self.skip_ahead(head_of_cycle, generations)
             
-            if stripped_new_pots in self.history:
-                return stripped_new_pots
+            for i in range(remaining_generations):
+                self.pots = self.increment()
+        
+        return self
+    
+    def brute_force(self, generations):
+        for i in range(generations):
+            self.pots = self.increment()
+            self.pad_and_prune(0)
+            
+            print(self)
+            
+            if self.pots in self.history:
+                return self.pots
             else:
-                self.history.append(stripped_new_pots)
-                self.pots = new_pots
-                
-                print(self)
+                self.history[self.pots] = (self.origin, len(self.history)-1)
+        
+        return None
     
     def increment(self):
         self.pad_and_prune(4)
         
-        return tuple(self.rules[tuple(self.pots[i-2:i+3])] for i in range(2, len(self.pots) - 3))
+        return (False, False) + tuple(self.rules[tuple(self.pots[i-2:i+3])] for i in range(2, len(self.pots) - 3)) + (False, False)
     
-    def skip_ahead(self):
-        pass
+    def skip_ahead(self, head_of_cycle, generations):
+        #calculate length of cycle
+        head_origin, head_position = self.history[head_of_cycle]
+        cycle_length = len(self.history) - head_position - 1
+        
+        #calculate change in origin from start to finish
+        origin_delta = self.origin - head_origin
+        
+        #set origin to the future
+        cycle_quantity, remaining_generations = divmod(generations - head_position, cycle_length)
+        
+        self.origin += cycle_quantity * cycle_length
+        
+        #return the quantity of remaining generations to brute force
+        return remaining_generations
     
     def pad_and_prune(self, size):
         first_true = self.pots.index(True)
         last_true = list(reversed(self.pots)).index(True)
         
         self.pots = (False,)*size + self.pots[first_true:len(self.pots)-last_true] + (False,)*size
-        self.origin += size - first_true - 2
+        self.origin += size - first_true
     
     @staticmethod
     def strip_list(list_):
