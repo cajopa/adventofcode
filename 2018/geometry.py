@@ -11,7 +11,25 @@ class Vector:
     __str__=__repr__
     
     def __eq__(self, other):
-        return isinstance(other, Vector) and (self.x, self.y) == (other.x, other.y)
+        return isinstance(other, Vector) and tuple(self) == tuple(other)
+    
+    def __lt__(self, other):
+        return isinstance(other, Vector) and tuple(self) < tuple(other)
+    
+    def __gt__(self, other):
+        return isinstance(other, Vector) and tuple(self) > tuple(other)
+    
+    def __le__(self, other):
+        return self == other or self < other
+    
+    def __ge__(self, other):
+        return self == other or self > other
+    
+    def __ne__(self, other):
+        return not self == other
+    
+    def __hash__(self):
+        return hash(self.__class__) ^ hash((self.x, self.y))
     
     def __add__(self, other):
         if not isinstance(other, Vector):
@@ -27,6 +45,10 @@ class Vector:
             return self.__class__(self.x * other, self.y * other)
         else:
             return NotImplemented
+    
+    def __iter__(self):
+        yield self.x
+        yield self.y
     
     @property
     def normalized(self):
