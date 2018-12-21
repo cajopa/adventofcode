@@ -1,8 +1,6 @@
 #!/usr/bin/env pypy3
 
-from itertools import cycle
-
-from kids.cache import cache
+from itertools import cycle, chain
 
 from geometry import Vector
 from util import run_as_script
@@ -38,7 +36,7 @@ class TrackSystem:
         self.tracks = {x.position: x for x in tracks}
         self.carts = {x.position: x for x in carts}
         
-        self.adopt()
+        self.adopt(chain(self.tracks.values(), self.carts.values()))
     
     def __getitem__(self, key):
         return self.tracks.get(key)
@@ -50,12 +48,9 @@ class TrackSystem:
         
         yield from sorted(self.carts.items(), key=lambda x: x[0])
     
-    def adopt(self):
-        for track in self.tracks:
-            track.system = self
-        
-        for cart in self.carts:
-            cart.system = self
+    def adopt(self, orphans):
+        for orphan in orphans:
+            orphan.system = self
     
     def tick(self):
         for cart in self:
@@ -97,7 +92,7 @@ class Cart:
     def __init__(self, initial_position, initial_direction):
         self.position = initial_position
         self.direction = initial_direction
-        self.intersection_direction = cycle(self.direction.counterclockwise, self.direction.copy, self.direction.clockwise)
+        self.intersection_direction = cycle([self.direction.counterclockwise, self.direction.copy, self.direction.clockwise])
     
     @property
     def track(self):
