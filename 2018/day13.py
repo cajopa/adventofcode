@@ -99,6 +99,10 @@ def part1(data=None, test=False):
     coordinates, where the furthest left column is X=0 and the furthest top row is Y=0.
     '''
     
+    try:
+        common_part(data, test).run()
+    except Crashed as e:
+        return e.cart.position
 
 def part2(data=None, test=None):
     '''
@@ -139,7 +143,7 @@ class TrackSystem:
         iterator for carts in proper order
         '''
         
-        yield from sorted(self.carts.items(), key=lambda x: x[0])
+        yield from sorted(self.carts.values(), key=lambda x: x.position)
     
     def adopt(self, orphans):
         for orphan in orphans:
@@ -148,6 +152,10 @@ class TrackSystem:
     def tick(self):
         for cart in self:
             cart.move()
+    
+    def run(self):
+        while True:
+            self.tick()
 
 class Track:
     def __init__(self, position, connections):
@@ -192,7 +200,7 @@ class Corner(Track):
             return '\\'
     
     def next_direction(self, cart):
-        return self.directions[1 - self.direction.index(cart.direction)]
+        return self.directions[1 - self.directions.index(-1 * cart.direction)]
 
 class Intersection(Track):
     def __str__(self):
@@ -205,7 +213,9 @@ class Cart:
     def __init__(self, initial_position, initial_direction):
         self.position = initial_position
         self.direction = initial_direction
-        self.intersection_direction = cycle([self.direction.counterclockwise, self.direction.copy, self.direction.clockwise])
+        
+        ### NOTE: Vector assumes upward is +y, but computer graphics conventions map downward to +y, so the winding function is reversed
+        self.intersection_direction = cycle([lambda: self.direction.clockwise, lambda: self.direction, lambda: self.direction.counterclockwise])
     
     def __repr__(self):
         return f'<{self.__class__.__name__} pos:{self.position} dir:{self.direction}>'
@@ -242,13 +252,16 @@ class Crashed(Exception):
     def __init__(self, cart):
         self.cart = cart
         
-        super().__init__()
+        super().__init__(f'at {cart.position}')
 
 
 if __name__=='__main__':
     run_as_script(
         part1,
-        {load('input/13.test'): Vector(7,3)},
+        {
+            load('input/13.test'): Vector(7,3),
+            load('input/13.test.mini'): Vector(4,4),
+        },
         part2,
         None
     )
