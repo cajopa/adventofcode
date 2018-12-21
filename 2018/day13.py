@@ -100,13 +100,16 @@ def part1(data=None, test=False):
     '''
     
     try:
-        common_part(data, test).run()
+        common_part(data, test).run_until_crash()
     except Crashed as e:
         return e.cart.position
 
 def part2(data=None, test=None):
     '''
+    What is the location of the last cart at the end of the first tick where it is the only cart left?
     '''
+    
+    return common_part(data, test).run_until_highlander().position
 
 
 class TrackSystem:
@@ -143,7 +146,7 @@ class TrackSystem:
         iterator for carts in proper order
         '''
         
-        yield from sorted(self.carts.values(), key=lambda x: x.position)
+        yield from sorted(self.carts.values(), key=lambda x: (x.position.y, x.position.x))
     
     def adopt(self, orphans):
         for orphan in orphans:
@@ -153,9 +156,33 @@ class TrackSystem:
         for cart in self:
             cart.move()
     
-    def run(self):
+    def run_until_crash(self):
         while True:
             self.tick()
+    
+    def run_until_highlander(self):
+        while len(self.carts) > 1:
+            crashed_carts = set()
+            
+            while True:
+                for cart in self:
+                    try:
+                        ### NOTE: can't use run_until_crash or even tick because we need to resume
+                        #         from within the tick when a crash occurs
+                        
+                        cart.move()
+                    except Crashed as e:
+                        #the crashed cart has already been removed from the index
+                        #save for later and soft-skip in the meantime because we're iterating on self.carts
+                        crashed_cart = self.carts[e.cart.position]
+                        
+                        crashed_cart.broken = True
+                        crashed_carts.add(crashed_cart)
+            
+            for cart in crashed_carts:
+                del self.carts[cart.position]
+        
+        return self.carts[0]
 
 class Track:
     def __init__(self, position, connections):
@@ -213,6 +240,7 @@ class Cart:
     def __init__(self, initial_position, initial_direction):
         self.position = initial_position
         self.direction = initial_direction
+        self.broken = False
         
         ### NOTE: Vector assumes upward is +y, but computer graphics conventions map downward to +y, so the winding function is reversed
         self.intersection_direction = cycle([lambda: self.direction.clockwise, lambda: self.direction, lambda: self.direction.counterclockwise])
@@ -222,31 +250,34 @@ class Cart:
     
     def __str__(self):
         if self.direction == Vector(1,0):
-            return '>'
+            return '=' if self.broken else '>'
         elif self.direction == Vector(-1,0):
-            return '<'
+            return '=' if self.broken else '<'
         elif self.direction == Vector(0,1):
-            return 'v'
+            return '¦' if self.broken else 'v'
         elif self.direction == Vector(0,-1):
-            return '^'
+            return '¦' if self.broken else '^'
     
     @property
     def track(self):
         return self.system.tracks[self.position]
     
     def move(self):
-        #move forward one
-        del self.system.carts[self.position]
-        self.position += self.direction
-        
-        #did I crash?
-        if self.position in self.system.carts:
-            raise Crashed(self)
-        else:
-            self.system.carts[self.position] = self
-        
-        #turn according to the track landed on
-        self.direction = self.track.next_direction(self)
+        if not self.broken:
+            #move forward one
+            del self.system.carts[self.position]
+            self.position += self.direction
+            
+            #did I crash?
+            crashed_into_cart = self.system.carts.get(self.position)
+            
+            if crashed_into_cart and not crashed_into_cart.broken:
+                raise Crashed(self)
+            else:
+                self.system.carts[self.position] = self
+            
+            #turn according to the track landed on
+            self.direction = self.track.next_direction(self)
 
 class Crashed(Exception):
     def __init__(self, cart):
