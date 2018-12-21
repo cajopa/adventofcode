@@ -7,7 +7,7 @@ class Vector:
         self.y = y
     
     def __repr__(self):
-        return f'<Vector x:{self.x} y:{self.y}>'
+        return f'<Vector ({self.x},{self.y})>'
     __str__=__repr__
     
     def __eq__(self, other):
