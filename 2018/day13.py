@@ -112,8 +112,27 @@ class TrackSystem:
         
         self.adopt(chain(self.tracks.values(), self.carts.values()))
     
-    def __getitem__(self, key):
-        return self.tracks.get(key)
+    def __repr__(self):
+        return f'<{self.__class__.__name__} {len(self.tracks)} tracks, {len(self.carts)} carts>'
+    
+    def __str__(self):
+        max_x = max(x.x for x in self.tracks.keys())
+        max_y = max(x.y for x in self.tracks.keys())
+        
+        def _inner():
+            for y in range(max_y + 1):
+                for x in range(max_x + 1):
+                    position = Vector(x,y)
+                    thing = self.carts.get(position) or self.tracks.get(position)
+                    
+                    if thing:
+                        yield str(thing)
+                    else:
+                        yield ' '
+                
+                yield '\n'
+        
+        return ''.join(_inner())
     
     def __iter__(self):
         '''
@@ -133,32 +152,52 @@ class TrackSystem:
 class Track:
     def __init__(self, position, connections):
         self.position = position
-        self._connections = connections
+        self._connection_positions = connections
         
         self.system = None
     
-    @cache
+    def __repr__(self):
+        return f'<{self.__class__.__name__} pos:{self.position} conn:{self._connection_positions}>'
+    
+    def __str__(self):
+        raise NotImplementedError
+    
     @property
     def connections(self):
-        return [self.system[x] for x in self._connections]
+        return [self.system.tracks[x] for x in self._connection_positions]
     
     def next_direction(self, cart):
         raise NotImplementedError
 
 class Straightaway(Track):
+    def __str__(self):
+        if abs((self._connection_positions[0] - self.position).x) == 1:
+            return '-'
+        else:
+            return '|'
+    
     def next_direction(self, cart):
         return cart.direction
 
 class Corner(Track):
     def __init__(self, position, connections):
-        super().__init__(position)
+        super().__init__(position, connections)
         
-        self.directions = tuple(x - self.position for x in self._connections)
+        self.directions = tuple(x - self.position for x in self._connection_positions)
+    
+    def __str__(self):
+        if (self._connection_positions[0] - self.position).x == (self._connection_positions[1] - self.position).y:
+            return '/'
+        else:
+            return '\\'
     
     def next_direction(self, cart):
         return self.directions[1 - self.direction.index(cart.direction)]
 
 class Intersection(Track):
+    def __str__(self):
+        return '+'
+    
     def next_direction(self, cart):
         return next(cart.intersection_direction)()
 
@@ -167,6 +206,19 @@ class Cart:
         self.position = initial_position
         self.direction = initial_direction
         self.intersection_direction = cycle([self.direction.counterclockwise, self.direction.copy, self.direction.clockwise])
+    
+    def __repr__(self):
+        return f'<{self.__class__.__name__} pos:{self.position} dir:{self.direction}>'
+    
+    def __str__(self):
+        if self.direction == Vector(1,0):
+            return '>'
+        elif self.direction == Vector(-1,0):
+            return '<'
+        elif self.direction == Vector(0,1):
+            return 'v'
+        elif self.direction == Vector(0,-1):
+            return '^'
     
     @property
     def track(self):
