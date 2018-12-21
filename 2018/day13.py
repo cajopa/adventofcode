@@ -34,8 +34,9 @@ def part2(data=None, test=None):
 
 
 class TrackSystem:
-    def __init__(self, tracks):
-        self.tracks = {x.coordinates: x for x in tracks}
+    def __init__(self, tracks, carts):
+        self.tracks = {x.position: x for x in tracks}
+        self.carts = {x.position: x for x in carts}
         
         self.adopt()
     
@@ -44,21 +45,25 @@ class TrackSystem:
     
     def __iter__(self):
         '''
-        iterator for tracks in proper order
+        iterator for carts in proper order
         '''
         
-        pass
+        yield from sorted(self.carts.items(), key=lambda x: x[0])
     
     def adopt(self):
         for track in self.tracks:
             track.system = self
+        
+        for cart in self.carts:
+            cart.system = self
     
     def tick(self):
-        pass
+        for cart in self:
+            cart.move()
 
 class Track:
-    def __init__(self, coordinates, connections):
-        self.coordinates = coordinates
+    def __init__(self, position, connections):
+        self.position = position
         self._connections = connections
         
         self.system = None
@@ -76,29 +81,41 @@ class Straightaway(Track):
         return cart.direction
 
 class Corner(Track):
-    def __init__(self, coordinates, connections):
-        super().__init__(coordinates)
+    def __init__(self, position, connections):
+        super().__init__(position)
         
-        self.directions = tuple(x - self.coordinates for x in self._connections)
+        self.directions = tuple(x - self.position for x in self._connections)
     
     def next_direction(self, cart):
         return self.directions[1 - self.direction.index(cart.direction)]
 
 class Intersection(Track):
     def next_direction(self, cart):
-        return next(cart.intersection_direction)
+        return next(cart.intersection_direction)()
 
 class Cart:
-    def __init__(self, initial_track, initial_direction):
-        self.track = initial_track
+    def __init__(self, initial_position, initial_direction):
+        self.position = initial_position
         self.direction = initial_direction
         self.intersection_direction = cycle(self.direction.counterclockwise, self.direction.copy, self.direction.clockwise)
     
+    @property
+    def track(self):
+        return self.system.tracks[self.position]
+    
     def move(self):
         #move forward one
+        del self.system.carts[self.position]
+        self.position += self.direction
+        
         #did I crash?
+        if self.position in self.system.carts:
+            raise Crashed(self)
+        else:
+            self.system.carts[self.position] = self
+        
         #turn according to the track landed on
-        pass
+        self.direction = self.track.next_direction(self)
 
 class Crashed(Exception):
     def __init__(self, cart):
@@ -110,7 +127,7 @@ class Crashed(Exception):
 if __name__=='__main__':
     run_as_script(
         part1,
-        {load('input/13.test'): (7,3)},
+        {load('input/13.test'): Vector(7,3)},
         part2,
         None
     )
