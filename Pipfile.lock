@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "1e673386e3d0ac456293062d71f5b14f4a23d8734636885311552e1a683bb54f"
+            "sha256": "ddc9910339d25141206ef26f7723097dcb1031c80ba625ab0b88635cb4451bbc"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -16,6 +16,15 @@
         ]
     },
     "default": {
+        "kids-cache": {
+            "hashes": [
+                "sha256:685b30a8aea1d225d0490f73a54955213b36d794e8d332a93c1db3e46e1ef11d"
+            ],
+            "index": "pypi",
+            "version": "==0.0.7"
+        }
+    },
+    "develop": {
         "backcall": {
             "hashes": [
                 "sha256:38ecd85be2c1e78f77fd91700c76e14667dc21e2713b63876c0eb901196e01e4",
@@ -29,6 +38,13 @@
                 "sha256:c39efa13fbdeb4506c476c9b3babf6a718da943dab7811c206005a4a956c080c"
             ],
             "version": "==4.3.0"
+        },
+        "ipdb": {
+            "hashes": [
+                "sha256:7081c65ed7bfe7737f83fa4213ca8afd9617b42ff6b3f1daf9a3419839a2a00a"
+            ],
+            "index": "pypi",
+            "version": "==0.11"
         },
         "ipython": {
             "hashes": [
@@ -51,13 +67,6 @@
                 "sha256:c8481b5e59d34a5c7c42e98f6625e633f6ef59353abea6437472c7ec2093f191"
             ],
             "version": "==0.13.2"
-        },
-        "kids-cache": {
-            "hashes": [
-                "sha256:685b30a8aea1d225d0490f73a54955213b36d794e8d332a93c1db3e46e1ef11d"
-            ],
-            "index": "pypi",
-            "version": "==0.0.7"
         },
         "parso": {
             "hashes": [
@@ -124,6 +133,5 @@
             ],
             "version": "==0.1.7"
         }
-    },
-    "develop": {}
+    }
 }
