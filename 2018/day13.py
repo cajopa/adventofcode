@@ -9,14 +9,88 @@ from util import run_as_script
 DEBUG = False
 
 
-def load(filename):
-    with open(filename) as f:
-        pass
+class load:
+    def __init__(self, filename):
+        self.tracks = []
+        self.carts = []
+        
+        with open(filename) as f:
+            prior = None
+            
+            for y, line in enumerate(f):
+                for x, char in enumerate(line):
+                    position = Vector(x, y)
+                    
+                    if char == '-':
+                        self.tracks.append(self.horizontal(position))
+                    elif char == '|':
+                        self.tracks.append(self.vertical(position))
+                    elif char == '/':
+                        if prior in ('-','+'):
+                            connections = [
+                                position + Vector(-1, 0),
+                                position + Vector(0, -1),
+                            ]
+                        else:
+                            connections = [
+                                position + Vector(1, 0),
+                                position + Vector(0, 1),
+                            ]
+                        
+                        self.tracks.append(Corner(position, connections))
+                    elif char == '\\':
+                        if prior in ('-','+'):
+                            connections = [
+                                position + Vector(-1, 0),
+                                position + Vector(0, 1),
+                            ]
+                        else:
+                            connections = [
+                                position + Vector(1, 0),
+                                position + Vector(0, -1),
+                            ]
+                        
+                        self.tracks.append(Corner(position, connections))
+                    elif char == '+':
+                        connections = [
+                            position + Vector(1,0),
+                            position + Vector(0,1),
+                            position + Vector(-1,0),
+                            position + Vector(0,-1),
+                        ]
+                        
+                        self.tracks.append(Intersection(position, connections))
+                    elif char == '<':
+                        self.tracks.append(self.horizontal(position))
+                        self.carts.append(Cart(position, Vector(-1,0)))
+                    elif char == '>':
+                        self.tracks.append(self.horizontal(position))
+                        self.carts.append(Cart(position, Vector(1,0)))
+                    elif char == '^':
+                        self.tracks.append(self.vertical(position))
+                        self.carts.append(Cart(position, Vector(0,-1)))
+                    elif char == 'v':
+                        self.tracks.append(self.vertical(position))
+                        self.carts.append(Cart(position, Vector(0,1)))
+                    # else: nothing
+                    
+                    prior = char
+    
+    def __iter__(self):
+        yield self.tracks
+        yield self.carts
+    
+    @classmethod
+    def horizontal(cls, position):
+        return Straightaway(position, [position + Vector(-1, 0), position + Vector(1, 0)])
+    
+    @classmethod
+    def vertical(cls, position):
+        return Straightaway(position, [position + Vector(0, -1), position + Vector(0, 1)])
+
 
 def common_part(data, test):
-    initial, rules = data or load('input/13.test' if test else 'input/13')
-    
-    return Cavern(initial, rules)
+    return TrackSystem(*(data or load('input/13.test' if test else 'input/13')))
 
 def part1(data=None, test=False):
     '''
