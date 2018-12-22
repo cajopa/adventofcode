@@ -26,7 +26,7 @@ class load:
                     elif char == '|':
                         self.tracks.append(self.vertical(position))
                     elif char == '/':
-                        if prior in ('-','+'):
+                        if prior in ('-','+','<','>'):
                             connections = [
                                 position + Vector(-1, 0),
                                 position + Vector(0, -1),
@@ -39,7 +39,7 @@ class load:
                         
                         self.tracks.append(Corner(position, connections))
                     elif char == '\\':
-                        if prior in ('-','+'):
+                        if prior in ('-','+','<','>'):
                             connections = [
                                 position + Vector(-1, 0),
                                 position + Vector(0, 1),
@@ -89,8 +89,8 @@ class load:
         return Straightaway(position, [position + Vector(0, -1), position + Vector(0, 1)])
 
 
-def common_part(data, test):
-    return TrackSystem(*(data or load('input/13.test' if test else 'input/13')))
+def common_part(data):
+    return TrackSystem(*(data or load('input/13')))
 
 def part1(data=None, test=False):
     '''
@@ -100,7 +100,7 @@ def part1(data=None, test=False):
     '''
     
     try:
-        common_part(data, test).run_until_crash()
+        common_part(data or test and load('input/13.1.test')).run_until_crash()
     except Crashed as e:
         return e.cart.position
 
@@ -109,7 +109,7 @@ def part2(data=None, test=None):
     What is the location of the last cart at the end of the first tick where it is the only cart left?
     '''
     
-    return common_part(data, test).run_until_highlander().position
+    return common_part(data or test and load('input/13.2.test')).run_until_highlander().position
 
 
 class TrackSystem:
@@ -164,25 +164,24 @@ class TrackSystem:
         while len(self.carts) > 1:
             crashed_carts = set()
             
-            while True:
-                for cart in self:
-                    try:
-                        ### NOTE: can't use run_until_crash or even tick because we need to resume
-                        #         from within the tick when a crash occurs
-                        
-                        cart.move()
-                    except Crashed as e:
-                        #the crashed cart has already been removed from the index
-                        #save for later and soft-skip in the meantime because we're iterating on self.carts
-                        crashed_cart = self.carts[e.cart.position]
-                        
-                        crashed_cart.broken = True
-                        crashed_carts.add(crashed_cart)
+            for cart in self:
+                try:
+                    ### NOTE: can't use run_until_crash or even tick because we need to resume
+                    #         from within the tick when a crash occurs
+                    
+                    cart.move()
+                except Crashed as e:
+                    #the crashed cart has already been removed from the index
+                    #save for later and soft-skip in the meantime because we're iterating on self.carts
+                    crashed_cart = self.carts[e.cart.position]
+                    
+                    crashed_cart.broken = True
+                    crashed_carts.add(crashed_cart)
             
             for cart in crashed_carts:
                 del self.carts[cart.position]
         
-        return self.carts[0]
+        return next(iter(self.carts.values()))
 
 class Track:
     def __init__(self, position, connections):
