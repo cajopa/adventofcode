@@ -2,6 +2,8 @@
 
 from itertools import cycle, chain
 
+from kids.cache import cache
+
 from geometry import Vector
 from util import run_as_script
 
@@ -99,6 +101,7 @@ class Scoreboard:
         while len(self) < length:
             self.increment()
     
+    @cache(key=lambda c,v: v)
     @classmethod
     def _calculate_digit_quantity(cls, value):
         if value >= 1000:
