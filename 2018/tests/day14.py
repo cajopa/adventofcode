@@ -73,12 +73,23 @@ class Scoreboard:
             
             assert fixture[start:stop] == expected
     
-    def increment(self):
-        fixture = day14.Scoreboard()
+    class increment:
+        def once(self):
+            fixture = day14.Scoreboard()
+            
+            fixture.increment()
+            
+            assert fixture.scores == 3710
+            assert fixture.positions == (0,1)
         
-        fixture.increment()
-        
-        assert fixture.scores == 3710
+        def twice(self):
+            fixture = day14.Scoreboard()
+            
+            fixture.increment()
+            fixture.increment()
+            
+            assert fixture.scores == 371010
+            assert fixture.positions == (4,3)
     
     @pytest.mark.parametrize('length', [
         1,

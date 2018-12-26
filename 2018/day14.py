@@ -30,7 +30,7 @@ def part2(data=None):
 class Scoreboard:
     def __init__(self):
         self.scores = STARTING_SCORES
-        self.positions = [0,1]
+        self.positions = (0,1)
     
     def __str__(self):
         def inner():
@@ -92,6 +92,8 @@ class Scoreboard:
             self.scores = self.scores * 100 + new_scores
         else:
             self.scores = self.scores * 10 + new_scores
+        
+        self.positions = tuple((x + self[x] + 1) % len(self) for x in self.positions)
     
     def run_until_length(self, length):
         while len(self) < length:
