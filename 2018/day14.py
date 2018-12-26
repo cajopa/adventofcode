@@ -32,6 +32,18 @@ class Scoreboard:
         self.scores = STARTING_SCORES
         self.positions = [0,1]
     
+    def __str__(self):
+        def inner():
+            for i,v in enumerate(self):
+                if i == self.positions[0]:
+                    yield f'({v})'
+                elif i == self.positions[1]:
+                    yield f'[{v}]'
+                else:
+                    yield f' {v} '
+        
+        return ''.join(inner())
+    
     def __len__(self):
         return self._calculate_digit_quantity(self.scores)
     
@@ -46,6 +58,10 @@ class Scoreboard:
         right_shifted = self.scores // 10**(len(self) - start - length)
         
         return right_shifted % 10**(length)
+    
+    def __iter__(self):
+        for i in range(len(self)):
+            yield self[i]
     
     @property
     def elf1_score(self):

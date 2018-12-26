@@ -72,15 +72,36 @@ class Scoreboard:
             fixture.scores = 3704836201
             
             assert fixture[start:stop] == expected
+    
+    def increment(self):
+        fixture = day14.Scoreboard()
+        
+        fixture.increment()
+        
+        assert fixture.scores == 3710
+    
+    @pytest.mark.parametrize('length', [
+        1,
+        2,
+        5,
+        10,
+        1000,
+    ])
+    def run_until_length(self, length):
+        fixture = day14.Scoreboard()
+        
+        fixture.run_until_length(length)
+        
+        assert len(fixture) >= length
 
-# @pytest.mark.parametrize('data,expected',[
-#     (9, '5158916779'),
-#     (5, '0124515891'),
-#     (18, '9251071085'),
-#     (2018, '5941429882'),
-# ])
-# def part1(data, expected):
-#     assert day14.part1(data=data) == expected
+@pytest.mark.parametrize('data,expected',[
+    (9, '5158916779'),
+    (5, '0124515891'),
+    (18, '9251071085'),
+    (2018, '5941429882'),
+])
+def part1(data, expected):
+    assert day14.part1(data=data) == expected
 
 class Part2():
     pass
