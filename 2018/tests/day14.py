@@ -66,6 +66,7 @@ class Scoreboard:
             (-2, -1, 0),
             (-2, None, 1),
             (2,4,4),
+            (9,None,1),
         ])
         def multiple(self, start, stop, expected):
             fixture = day14.Scoreboard()
@@ -73,23 +74,31 @@ class Scoreboard:
             
             assert fixture[start:stop] == expected
     
-    class increment:
-        def once(self):
-            fixture = day14.Scoreboard()
-            
-            fixture.increment()
-            
-            assert fixture.scores == 3710
-            assert fixture.positions == (0,1)
+    @pytest.mark.parametrize('loop_quantity,scores,positions', [
+        (1, 3710, (0,1)),
+        (2, 371010, (4,3)),
+        (3, 3710101, (6,4)),
+        (4, 37101012, (0,6)),
+        (5, 371010124, (4,8)),
+        (6, 3710101245, (6,3)),
+        (7, 37101012451, (8,4)),
+        (8, 371010124515, (1,6)),
+        (9, 3710101245158, (9,8)),
+        (10, 37101012451589, (1,13)),
+        (11, 3710101245158916, (9,7)),
+        (12, 37101012451589167, (15,10)),
+        (13, 371010124515891677, (4,12)),
+        (14, 3710101245158916779, (6,2)),
+        (15, 37101012451589167792, (8,4)),
+    ])
+    def increment(self, loop_quantity, scores, positions):
+        fixture = day14.Scoreboard()
         
-        def twice(self):
-            fixture = day14.Scoreboard()
-            
+        for _ in range(loop_quantity):
             fixture.increment()
-            fixture.increment()
-            
-            assert fixture.scores == 371010
-            assert fixture.positions == (4,3)
+        
+        assert fixture.scores == scores
+        assert fixture.positions == positions
     
     @pytest.mark.parametrize('length', [
         1,

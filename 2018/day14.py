@@ -20,9 +20,7 @@ def part1(data=None):
     
     board = Scoreboard()
     
-    board.run_until_length(data)
-    
-    return '{:010d}'.format(board.plus_10)
+    return '{:010d}'.format(board.run_until_10_more(data or INPUT))
 
 def part2(data=None):
     '''
@@ -77,29 +75,23 @@ class Scoreboard:
     def new_scores(self):
         return self.elf1_score + self.elf2_score
     
-    @property
-    def plus_10(self):
-        old_length = len(self)
-        self.run_until_length(old_length + 10)
-        new_length = len(self)
-        
-        position = -(new_length - old_length - 10)
-        
-        return self[position:position+10]
-    
     def increment(self):
-        new_scores = self.new_scores
-        
-        if new_scores > 9:
-            self.scores = self.scores * 100 + new_scores
+        if self.new_scores > 9:
+            self.scores = self.scores * 100 + self.new_scores
         else:
-            self.scores = self.scores * 10 + new_scores
+            self.scores = self.scores * 10 + self.new_scores
         
         self.positions = tuple((x + self[x] + 1) % len(self) for x in self.positions)
     
     def run_until_length(self, length):
         while len(self) < length:
             self.increment()
+    
+    def run_until_10_more(self, length):
+        self.run_until_length(length + 10)
+        margin = len(self) - length - 10
+        
+        return self[-(10+margin):-margin or None]
     
     @cache(key=lambda c,v: v)
     @classmethod
