@@ -286,14 +286,4 @@ class Crashed(Exception):
 
 
 if __name__=='__main__':
-    run_as_script(
-        part1,
-        {
-            load('input/13.1.test'): Vector(7,3),
-            load('input/13.1.test.mini'): Vector(4,4),
-        },
-        part2,
-        {
-            load('input/13.2.test'): Vector(6,4),
-        }
-    )
+    run_as_script(13)

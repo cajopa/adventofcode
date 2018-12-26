@@ -7,6 +7,8 @@ verify_ssl = true
 ipdb = "*"
 ipython = "*"
 pytest = "*"
+pytest-sugar = "*"
+pytest-relaxed = "*"
 
 [packages]
 kids-cache = "*"
