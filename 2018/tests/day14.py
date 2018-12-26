@@ -1,3 +1,5 @@
+import pytest
+
 import day14
 
 
@@ -29,36 +31,56 @@ class Scoreboard:
             assert day14.Scoreboard._calculate_digit_quantity(-10) == -1
             assert day14.Scoreboard._calculate_digit_quantity(-100) == -1
     
-    class ExtractScore:
+    class getitem:
         def one_digit(self):
             fixture = day14.Scoreboard()
             fixture.scores = 4
             
-            assert fixture._extract_score(0) == 4
+            assert fixture[0] == 4
         
         def two_digits(self):
             fixture = day14.Scoreboard()
             
-            assert fixture._extract_score(0) == 3
-            assert fixture._extract_score(1) == 7
+            assert fixture[0] == 3
+            assert fixture[1] == 7
         
         def ten_digits(self):
             fixture = day14.Scoreboard()
             fixture.scores = 3704836201
             
-            assert fixture._extract_score(0) == 3
-            assert fixture._extract_score(1) == 7
-            assert fixture._extract_score(2) == 0
-            assert fixture._extract_score(3) == 4
-            assert fixture._extract_score(4) == 8
-            assert fixture._extract_score(5) == 3
-            assert fixture._extract_score(6) == 6
-            assert fixture._extract_score(7) == 2
-            assert fixture._extract_score(8) == 0
-            assert fixture._extract_score(9) == 1
+            assert fixture[0] == 3
+            assert fixture[1] == 7
+            assert fixture[2] == 0
+            assert fixture[3] == 4
+            assert fixture[4] == 8
+            assert fixture[5] == 3
+            assert fixture[6] == 6
+            assert fixture[7] == 2
+            assert fixture[8] == 0
+            assert fixture[9] == 1
+        
+        @pytest.mark.parametrize('start,stop,expected', [
+            (0, 2, 37),
+            (0, -1, 370483620),
+            (0, None, 3704836201),
+            (-2, -1, 0),
+            (-2, None, 1),
+            (2,4,4),
+        ])
+        def multiple(self, start, stop, expected):
+            fixture = day14.Scoreboard()
+            fixture.scores = 3704836201
+            
+            assert fixture[start:stop] == expected
 
-class Part1():
-    pass
+# @pytest.mark.parametrize('data,expected',[
+#     (9, '5158916779'),
+#     (5, '0124515891'),
+#     (18, '9251071085'),
+#     (2018, '5941429882'),
+# ])
+# def part1(data, expected):
+#     assert day14.part1(data=data) == expected
 
 class Part2():
     pass
