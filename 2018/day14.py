@@ -20,7 +20,21 @@ def part1(data=None):
     
     board = Scoreboard()
     
-    return '{:010d}'.format(board.run_until_10_more(data or INPUT))
+    if DEBUG:
+        import time
+        
+        start_time = time.time()
+        print(f'start time: {start_time}')
+        
+        to_return = '{:010d}'.format(board.run_until_10_more(data or INPUT))
+        
+        elapsed_time = time.time() - start_time
+        
+        print(f'elapsed time: {elapsed_time}s')
+        
+        return to_return
+    else:
+        return '{:010d}'.format(board.run_until_10_more(data or INPUT))
 
 def part2(data=None):
     '''
@@ -44,6 +58,7 @@ class Scoreboard:
         
         return ''.join(inner())
     
+    @cache(key=lambda s: s.scores)
     def __len__(self):
         return self._calculate_digit_quantity(self.scores)
     
@@ -109,4 +124,4 @@ class Scoreboard:
 
 
 if __name__=='__main__':
-    run_as_script(14)
+    run_as_script(14, part1, part2)
