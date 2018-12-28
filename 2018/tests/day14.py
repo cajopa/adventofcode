@@ -6,7 +6,6 @@ import day14
 class Scoreboard:
     class CalculateDigits:
         def one_digit(self):
-            assert day14.Scoreboard._calculate_digit_quantity(0) == 1
             assert day14.Scoreboard._calculate_digit_quantity(1) == 1
             assert day14.Scoreboard._calculate_digit_quantity(2) == 1
             assert day14.Scoreboard._calculate_digit_quantity(3) == 1
@@ -25,11 +24,6 @@ class Scoreboard:
             assert day14.Scoreboard._calculate_digit_quantity(10**49 + 2) == 50
             assert day14.Scoreboard._calculate_digit_quantity(10**49 + 3) == 50
             assert day14.Scoreboard._calculate_digit_quantity(10**49 + 9) == 50
-        
-        def negative(self):
-            assert day14.Scoreboard._calculate_digit_quantity(-1) == -1
-            assert day14.Scoreboard._calculate_digit_quantity(-10) == -1
-            assert day14.Scoreboard._calculate_digit_quantity(-100) == -1
     
     class getitem:
         def one_digit(self):

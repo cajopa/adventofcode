@@ -1,8 +1,7 @@
 #!/usr/bin/env pypy3
 
 from itertools import cycle, chain
-
-from kids.cache import cache
+import math
 
 from geometry import Vector
 from util import run_as_script
@@ -58,7 +57,6 @@ class Scoreboard:
         
         return ''.join(inner())
     
-    @cache(key=lambda s: s.scores)
     def __len__(self):
         return self._calculate_digit_quantity(self.scores)
     
@@ -91,16 +89,26 @@ class Scoreboard:
         return self.elf1_score + self.elf2_score
     
     def increment(self):
-        if self.new_scores > 9:
-            self.scores = self.scores * 100 + self.new_scores
+        new_scores = self.new_scores
+        
+        if new_scores > 9:
+            self.scores = self.scores * 100 + new_scores
         else:
-            self.scores = self.scores * 10 + self.new_scores
+            self.scores = self.scores * 10 + new_scores
         
         self.positions = tuple((x + self[x] + 1) % len(self) for x in self.positions)
     
     def run_until_length(self, length):
-        while len(self) < length:
-            self.increment()
+        if DEBUG:
+            i = 0
+            while len(self) < length:
+                i += 1
+                if i % 1000 == 0:
+                    print('.', end='', flush=True)
+                self.increment()
+        else:
+            while len(self) < length:
+                self.increment()
     
     def run_until_10_more(self, length):
         self.run_until_length(length + 10)
@@ -108,19 +116,11 @@ class Scoreboard:
         
         return self[-(10+margin):-margin or None]
     
-    @cache(key=lambda c,v: v)
     @classmethod
     def _calculate_digit_quantity(cls, value):
-        if value >= 1000:
-            return 3 + cls._calculate_digit_quantity(value // 1000)
-        elif value >= 100:
-            return 2 + cls._calculate_digit_quantity(value // 100)
-        elif value >= 10:
-            return 1 + cls._calculate_digit_quantity(value // 10)
-        elif value >= 0:
-            return 1
-        else:
-            return -1
+        ### NOTE: doesn't work for zero or negative
+        
+        return math.floor(math.log(value, 10) + 1)
 
 
 if __name__=='__main__':
