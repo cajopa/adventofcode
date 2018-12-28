@@ -37,7 +37,7 @@ def part2(data=None):
     How many recipes appear on the scoreboard to the left of the score sequence in your puzzle input?
     '''
     
-    return Scoreboard().run_until_sequence(data or str(INPUT))
+    return Scoreboard().run_until_sequence(data or [int(x) for x in str(INPUT)])
 
 
 class Scoreboard:
@@ -73,6 +73,9 @@ class Scoreboard:
         self.scores.extend(int(x) for x in str(self.new_scores))
         
         self.positions = tuple((x + self.scores[x] + 1) % len(self.scores) for x in self.positions)
+        
+        if DEBUG:
+            print(self)
     
     def run_until_length(self, length):
         if DEBUG:
@@ -96,12 +99,12 @@ class Scoreboard:
         sequence_length = len(sequence)
         
         while True:
-            if self.scores[-sequence_length:] == sequence or self.scores[-sequence_length-1:-1] == sequence:
-                break
+            if self.scores[-sequence_length:] == sequence:
+                return len(self.scores) - sequence_length
+            elif self.scores[-sequence_length-1:-1] == sequence:
+                return len(self.scores) - sequence_length - 1
             else:
                 self.increment()
-        
-        return len(self.scores) - sequence_length
 
 
 if __name__=='__main__':
