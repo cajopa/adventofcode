@@ -54,5 +54,11 @@ class Scoreboard:
 def part1(data, expected):
     assert day14.part1(data=data) == expected
 
-class Part2():
-    pass
+@pytest.mark.parametrize('data,expected',[
+    ([5,1,5,8,9], 9),
+    ([0,1,2,4,5], 5),
+    ([9,2,5,1,0], 18),
+    ([5,9,4,1,4], 2018),
+])
+def part2(data, expected):
+    assert day14.part2(data=data) == expected

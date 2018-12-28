@@ -34,7 +34,10 @@ def part1(data=None):
 
 def part2(data=None):
     '''
+    How many recipes appear on the scoreboard to the left of the score sequence in your puzzle input?
     '''
+    
+    return Scoreboard().run_until_sequence(data or str(INPUT))
 
 
 class Scoreboard:
@@ -88,6 +91,17 @@ class Scoreboard:
         margin = len(self.scores) - length - 10
         
         return self.scores[-(10+margin):-margin or None]
+    
+    def run_until_sequence(self, sequence):
+        sequence_length = len(sequence)
+        
+        while True:
+            if self.scores[-sequence_length:] == sequence or self.scores[-sequence_length-1:-1] == sequence:
+                break
+            else:
+                self.increment()
+        
+        return len(self.scores) - sequence_length
 
 
 if __name__=='__main__':
