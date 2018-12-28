@@ -1,15 +1,12 @@
 #!/usr/bin/env pypy3
 
-from itertools import cycle, chain
-import math
-
 from geometry import Vector
 from util import run_as_script
 
 
 DEBUG = False
 INPUT = 320851
-STARTING_SCORES = 37
+STARTING_SCORES = [3,7]
 
 
 def part1(data=None):
@@ -25,7 +22,7 @@ def part1(data=None):
         start_time = time.time()
         print(f'start time: {start_time}')
         
-        to_return = '{:010d}'.format(board.run_until_10_more(data or INPUT))
+        to_return = ''.join(str(x) for x in board.run_until_10_more(data or INPUT))
         
         elapsed_time = time.time() - start_time
         
@@ -33,7 +30,7 @@ def part1(data=None):
         
         return to_return
     else:
-        return '{:010d}'.format(board.run_until_10_more(data or INPUT))
+        return ''.join(str(x) for x in board.run_until_10_more(data or INPUT))
 
 def part2(data=None):
     '''
@@ -42,12 +39,12 @@ def part2(data=None):
 
 class Scoreboard:
     def __init__(self):
-        self.scores = STARTING_SCORES
+        self.scores = list(STARTING_SCORES)
         self.positions = (0,1)
     
     def __str__(self):
         def inner():
-            for i,v in enumerate(self):
+            for i,v in enumerate(self.scores):
                 if i == self.positions[0]:
                     yield f'({v})'
                 elif i == self.positions[1]:
@@ -57,70 +54,40 @@ class Scoreboard:
         
         return ''.join(inner())
     
-    def __len__(self):
-        return self._calculate_digit_quantity(self.scores)
-    
-    def __getitem__(self, index):
-        if isinstance(index, slice):
-            start, stop, _ = index.indices(len(self))
-        else:
-            start, stop = index, index+1
-        
-        length = stop - start
-        
-        right_shifted = self.scores // 10**(len(self) - start - length)
-        
-        return right_shifted % 10**(length)
-    
-    def __iter__(self):
-        for i in range(len(self)):
-            yield self[i]
-    
     @property
     def elf1_score(self):
-        return self[self.positions[0]]
+        return self.scores[self.positions[0]]
     
     @property
     def elf2_score(self):
-        return self[self.positions[1]]
+        return self.scores[self.positions[1]]
     
     @property
     def new_scores(self):
         return self.elf1_score + self.elf2_score
     
     def increment(self):
-        new_scores = self.new_scores
+        self.scores.extend(int(x) for x in str(self.new_scores))
         
-        if new_scores > 9:
-            self.scores = self.scores * 100 + new_scores
-        else:
-            self.scores = self.scores * 10 + new_scores
-        
-        self.positions = tuple((x + self[x] + 1) % len(self) for x in self.positions)
+        self.positions = tuple((x + self.scores[x] + 1) % len(self.scores) for x in self.positions)
     
     def run_until_length(self, length):
         if DEBUG:
             i = 0
-            while len(self) < length:
+            while len(self.scores) < length:
                 i += 1
                 if i % 1000 == 0:
                     print('.', end='', flush=True)
                 self.increment()
         else:
-            while len(self) < length:
+            while len(self.scores) < length:
                 self.increment()
     
     def run_until_10_more(self, length):
         self.run_until_length(length + 10)
-        margin = len(self) - length - 10
+        margin = len(self.scores) - length - 10
         
-        return self[-(10+margin):-margin or None]
-    
-    @classmethod
-    def _calculate_digit_quantity(cls, value):
-        ### NOTE: doesn't work for zero or negative
-        
-        return math.floor(math.log(value, 10) + 1)
+        return self.scores[-(10+margin):-margin or None]
 
 
 if __name__=='__main__':
