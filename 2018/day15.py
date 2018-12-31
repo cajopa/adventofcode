@@ -1,5 +1,7 @@
 #!/usr/bin/env pypy3
 
+from collections import defaultdict
+
 from geometry import Vector
 from util import run_as_script
 
@@ -104,9 +106,10 @@ A turn is evaluate, optional move (early term if none valid), attack if possible
 
 class Map:
     def __init__(self, nodes=[]):
-        self.nodes = defaultdict(lambda: None, ((x.position, x) for x in nodes))
+        self.nodes = set(nodes)
         
         self.adopt_nodes()
+        self.link_nodes()
     
     def adopt(self, node):
         node.parent = self
@@ -116,8 +119,10 @@ class Map:
             self.adopt(node)
     
     def link_nodes(self):
+        indexed_nodes = defaultdict(lambda: None, ((x.position, x) for x in self.nodes))
+        
         for node in self.nodes:
-            node.link()
+            node.link(indexed_nodes)
 
 class Open:
     def __init__(self, position):
@@ -131,26 +136,43 @@ class Open:
         self.up = None
         self.down = None
     
-    def link(self):
-        self.left = self.parent.nodes[self.position + Vector(-1,0)]
-        self.right = self.parent.nodes[self.position + Vector(1,0)]
-        self.up = self.parent.nodes[self.position + Vector(0,-1)]
-        self.down = self.parent.nodes[self.position + Vector(0,1)]
+    def link(self, indexed_nodes):
+        self.left = indexed_nodes[self.position + Vector(-1,0)]
+        self.right = indexed_nodes[self.position + Vector(1,0)]
+        self.up = indexed_nodes[self.position + Vector(0,-1)]
+        self.down = indexed_nodes[self.position + Vector(0,1)]
 
 class Unit:
     def __init__(self, parent):
         self.parent = parent
         self.parent.unit = self
+        
+        self.hit_points = 200
+        self.attack_power = 3
     
     @property
     def position(self):
         return self.parent.position
+    
+    def attack(self, other):
+        other.take_damage(self.attack_power)
+    
+    def take_damage(self, amount):
+        self.hit_points -= amount
+        
+        if self.hit_points <= 0:
+            raise Died(self)
 
 class Elf(Unit):
     pass
 
 class Goblin(Unit):
     pass
+
+class Died(Exception):
+    def __init__(self, unit):
+        self.unit = unit
+        super().__init__()
 
 
 if __name__=='__main__':
