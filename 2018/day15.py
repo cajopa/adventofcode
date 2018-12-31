@@ -1,5 +1,6 @@
 #!/usr/bin/env pypy3
 
+from geometry import Vector
 from util import run_as_script
 
 
@@ -17,7 +18,7 @@ class load:
         with open(filename, 'r') as f:
             grid = self.parse(f)
         
-        self.graph = self.graphify(grid)
+        self.graph = self.mapify(grid)
     
     @classmethod
     def parse(cls, f):
@@ -42,10 +43,22 @@ class load:
         return grid
     
     @classmethod
-    def graphify(cls, grid):
-        #convert tokens to nodes/units
-        #hook up objects to each other for later traversal
-        pass
+    def mapify(cls, grid):
+        return Map(cls._mapify(grid))
+    
+    @classmethod
+    def _mapify(cls, grid):
+        for y,row in enumerate(grid):
+            for x,item in enumerate(row):
+                if not item is cls.WALL:
+                    node = Open(Vector(x,y))
+                    
+                    if item is cls.ELF:
+                        unit = Elf(node)
+                    elif item is cls.GOB:
+                        unit = Goblin(node)
+                    
+                    yield node
 
 def part1(data=None):
     '''
@@ -87,6 +100,57 @@ A turn is evaluate, optional move (early term if none valid), attack if possible
             on death, ceases to exist entirely (no map presence, no turns)
 "outcome": [number of full rounds completed] * [sum of HP of all remaining units]
 '''
+
+
+class Map:
+    def __init__(self, nodes=[]):
+        self.nodes = defaultdict(lambda: None, ((x.position, x) for x in nodes))
+        
+        self.adopt_nodes()
+    
+    def adopt(self, node):
+        node.parent = self
+    
+    def adopt_nodes(self):
+        for node in self.nodes:
+            self.adopt(node)
+    
+    def link_nodes(self):
+        for node in self.nodes:
+            node.link()
+
+class Open:
+    def __init__(self, position):
+        self.position = position
+        
+        self.parent = None
+        self.unit = None
+        
+        self.left = None
+        self.right = None
+        self.up = None
+        self.down = None
+    
+    def link(self):
+        self.left = self.parent.nodes[self.position + Vector(-1,0)]
+        self.right = self.parent.nodes[self.position + Vector(1,0)]
+        self.up = self.parent.nodes[self.position + Vector(0,-1)]
+        self.down = self.parent.nodes[self.position + Vector(0,1)]
+
+class Unit:
+    def __init__(self, parent):
+        self.parent = parent
+        self.parent.unit = self
+    
+    @property
+    def position(self):
+        return self.parent.position
+
+class Elf(Unit):
+    pass
+
+class Goblin(Unit):
+    pass
 
 
 if __name__=='__main__':
