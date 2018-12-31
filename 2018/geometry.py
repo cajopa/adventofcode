@@ -72,6 +72,10 @@ class Vector:
     def magnitude(self):
         return (self.x**2 + self.y**2) ** 0.5
     
+    @property
+    def rect_magnitude(self):
+        return abs(self.x) + abs(self.y)
+    
     def dot_product(self, other):
         return self.x * other.x + self.y * other.y
     
