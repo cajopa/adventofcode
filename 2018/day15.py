@@ -133,6 +133,9 @@ class Map:
         return len({x.__class__ for x in live_units}) == 1
 
 class Open:
+    PathInfo = namedtuple('PathInfo', 'destination distance directions')
+    
+    
     def __init__(self, position):
         self.position = position
         
@@ -153,6 +156,58 @@ class Open:
         self.down = indexed_nodes[self.position + Vector(0,1)]
         
         self.neighborhood = {self.left, self.right, self.up, self.down}
+    
+    def distance_to(self, other):
+        return (self.position - other.position).rect_magnitude
+    
+    def find_shortest_path(self, destination, current_shortest, prefix=[], visited=set()):
+        '''
+        Uses recursive variation of A*, using manhattan distance as heuristic and pruning aid.
+        
+        .param.destination: type=Open
+        .param.current_shortest: type=int
+        .param.prefix: type=list(Node) #prior elements in the path
+        .param.visited: type=set(Node) #nodes previously visited
+        
+        .return: type=PathInfo
+        '''
+        
+        manhattan_distance = self.distance_to(destination)
+        
+        if manhattan_distance == 0:
+            return cls.PathInfo(
+                destination=destination,
+                distance=len(prefix) + 1,
+                directions=prefix + [destination]
+            )
+        elif not current_shortest or len(prefix) + manhattan_distance < current_shortest:
+            if manhattan_distance == 1:
+                return destination.find_shortest_path(
+                    destination,
+                    current_shortest,
+                    prefix=prefix+[self],
+                    visited=visited|{self}
+                )
+            else:
+                prioritized_neighbors = sorted(self.neighborhood, key=lambda x: x.distance_to(destination))
+                
+                #FIXME: find multiple shortest paths and select the one where the first step is earlier in reading order
+                
+                for node in prioritized_neighbors:
+                    exploratory_result = node.find_shortest_path(
+                        destination,
+                        current_shortest,
+                        prefix=prefix+[self],
+                        visited=visited|{self}
+                    )
+                    
+                    if exploratory_result:
+                        if isinstance(exploratory_result, set):
+                            visited |= exploratory_result
+                        else: #assume it's a PathInfo
+                            return exploratory_result
+        else:
+            return visited | {self}
 
 class Unit:
     IN_RANGE = object()
@@ -223,7 +278,27 @@ class Unit:
                 if multiple shortest paths, prefer reading order (absolute)
         '''
         
-        pass
+        open_in_range_nodes = self._find_open_in_range(potential_targets)
+        
+        min_path = None
+        
+        for node in open_in_range_nodes:
+            path = self.find_shortest_path(node, min_path and min_path.distance)
+            
+            if path and isinstance(path, PathInfo):
+                min_path = path
+    
+    @classmethod
+    def _find_open_in_range(cls, targets):
+        for target in targets:
+            yield from (node for node in target.neighborhood if node and not node.unit)
+    
+    def find_shortest_path(self, destination, current_shortest):
+        '''
+        Find shortest path from self to destination.
+        '''
+        
+        return self.parent.find_shortest_path(destination, current_shortest)
     
     def attack_phase(self):
         '''
