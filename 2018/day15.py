@@ -120,7 +120,7 @@ class Map:
             while True:
                 self.run_round()
                 full_rounds += 1
-        except Genocide:
+        except (Genocide, NoTargets):
             return self.score(full_rounds)
     
     def score(self, full_rounds):
@@ -143,14 +143,21 @@ class Open:
         self.right = None
         self.up = None
         self.down = None
+        
+        self.neighborhood = None
     
     def link(self, indexed_nodes):
         self.left = indexed_nodes[self.position + Vector(-1,0)]
         self.right = indexed_nodes[self.position + Vector(1,0)]
         self.up = indexed_nodes[self.position + Vector(0,-1)]
         self.down = indexed_nodes[self.position + Vector(0,1)]
+        
+        self.neighborhood = {self.left, self.right, self.up, self.down}
 
 class Unit:
+    IN_RANGE = object()
+    
+    
     def __init__(self, parent):
         self.parent = parent
         self.parent.unit = self
@@ -176,12 +183,35 @@ class Unit:
     def take_turn(self):
         '''
         A turn is evaluate, optional move (early term if none valid), attack if possible
+        '''
+        
+        evaluation = self.evaluate_phase()
+        
+        if evaluation is self.IN_RANGE:
+            self.attack_phase()
+        else:
+            self.move_phase(evaluation)
+    
+    def evaluate_phase(self):
+        '''
         Evaluate:
             identify all possible targets (end of game if none)
             "in range": orthogonally adjacent
             Determine if already "in range"
                 if so, go to attack phase
                 else, go to move phase
+        '''
+        
+        in_range_targets = [x.unit for x in self.parent.neighborhood if x and x.unit]
+        
+        if in_range_targets:
+            return self.IN_RANGE
+        else:
+            #find all potential targets
+            return [x.unit for x in self.parent.parent.nodes if x.unit and not isinstance(x, self.__class__)]
+    
+    def move_phase(self, potential_targets):
+        '''
         Move:
             identify all Open "in range" of a target
             "step": single movement one orthogonally
@@ -191,16 +221,25 @@ class Unit:
             
             once destination determined, take one step toward it on a shortest path
                 if multiple shortest paths, prefer reading order (absolute)
+        '''
+        
+        pass
+    
+    def attack_phase(self):
+        '''
         Attack:
             determine all "in range" targets
             if none, end turn
             else,
-                choose the target with fewest HP, prefer reading order
-                    reading order relative to self, so no right first, then down
+                choose the target with fewest HP, prefer reading order (absolute)
                 deal attack power damage
                 if target's HP drops to 0 or below, dies
                 on death, ceases to exist entirely (no map presence, no turns)
         '''
+        
+        target = min((x.unit for x in self.parent.neighborhood if x and x.unit), key=lambda x: (x.hit_points, x.position))
+        
+        self.attack(target)
 
 class Elf(Unit):
     pass
@@ -214,6 +253,9 @@ class Died(Exception):
         super().__init__()
 
 class Genocide(Exception):
+    pass
+
+class NoTargets(Exception):
     pass
 
 
