@@ -1,6 +1,6 @@
 #!/usr/bin/env pypy3
 
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 
 from geometry import Vector
 from util import run_as_script
@@ -53,7 +53,7 @@ class load:
         for y,row in enumerate(grid):
             for x,item in enumerate(row):
                 if not item is cls.WALL:
-                    node = Open(Vector(x,y))
+                    node = Node(Vector(x,y))
                     
                     if item is cls.ELF:
                         Elf(node)
@@ -111,7 +111,7 @@ class Map:
                 except Died as e:
                     dead_units.add(e.unit)
         else:
-            raise Exception('no units left on the map!')
+            raise NoTargets
     
     def run_until_genocide(self):
         full_rounds = 0
@@ -132,7 +132,7 @@ class Map:
         
         return len({x.__class__ for x in live_units}) == 1
 
-class Open:
+class Node:
     PathInfo = namedtuple('PathInfo', 'destination distance directions')
     
     
@@ -142,72 +142,68 @@ class Open:
         self.parent = None
         self.unit = None
         
-        self.left = None
-        self.right = None
-        self.up = None
-        self.down = None
-        
         self.neighborhood = None
     
     def link(self, indexed_nodes):
-        self.left = indexed_nodes[self.position + Vector(-1,0)]
-        self.right = indexed_nodes[self.position + Vector(1,0)]
-        self.up = indexed_nodes[self.position + Vector(0,-1)]
-        self.down = indexed_nodes[self.position + Vector(0,1)]
+        left = indexed_nodes[self.position + Vector(-1,0)]
+        right = indexed_nodes[self.position + Vector(1,0)]
+        up = indexed_nodes[self.position + Vector(0,-1)]
+        down = indexed_nodes[self.position + Vector(0,1)]
         
-        self.neighborhood = {self.left, self.right, self.up, self.down}
+        self.neighborhood = {left, right, up, down}
     
     def distance_to(self, other):
         return (self.position - other.position).rect_magnitude
     
-    def find_shortest_path(self, destination, current_shortest, prefix=[], visited=set()):
+    def find_shortest_paths(self, destination, current_shortest, prefix=[]):
         '''
         Uses recursive variation of A*, using manhattan distance as heuristic and pruning aid.
         
-        .param.destination: type=Open
+        .param.destination: type=Node
         .param.current_shortest: type=int
         .param.prefix: type=list(Node) #prior elements in the path
-        .param.visited: type=set(Node) #nodes previously visited
         
-        .return: type=PathInfo
+        .return: type=list(PathInfo)
         '''
         
         manhattan_distance = self.distance_to(destination)
         
         if manhattan_distance == 0:
-            return cls.PathInfo(
+            return [cls.PathInfo(
                 destination=destination,
                 distance=len(prefix) + 1,
                 directions=prefix + [destination]
-            )
-        elif not current_shortest or len(prefix) + manhattan_distance < current_shortest:
+            )]
+        elif current_shortest is None or len(prefix) + manhattan_distance < current_shortest:
             if manhattan_distance == 1:
-                return destination.find_shortest_path(
+                return destination.find_shortest_paths(
                     destination,
                     current_shortest,
                     prefix=prefix+[self],
-                    visited=visited|{self}
                 )
             else:
                 prioritized_neighbors = sorted(self.neighborhood, key=lambda x: x.distance_to(destination))
                 
-                #FIXME: find multiple shortest paths and select the one where the first step is earlier in reading order
+                shortest_paths = []
                 
                 for node in prioritized_neighbors:
-                    exploratory_result = node.find_shortest_path(
+                    exploratory_result = node.find_shortest_paths(
                         destination,
                         current_shortest,
                         prefix=prefix+[self],
-                        visited=visited|{self}
                     )
                     
                     if exploratory_result:
-                        if isinstance(exploratory_result, set):
-                            visited |= exploratory_result
-                        else: #assume it's a PathInfo
-                            return exploratory_result
-        else:
-            return visited | {self}
+                        if exploratory_result.distance == current_shortest:
+                            shortest_paths.extend(exploratory_result)
+                        elif exploratory_result.distance < current_shortest:
+                            current_shortest = exploratory_result.distance
+                            shortest_paths = [exploratory_result]
+                
+                if shortest_paths:
+                    return shortest_paths
+        # else:
+        #     pass
 
 class Unit:
     IN_RANGE = object()
@@ -268,7 +264,7 @@ class Unit:
     def move_phase(self, potential_targets):
         '''
         Move:
-            identify all Open "in range" of a target
+            identify all Node "in range" of a target
             "step": single movement one orthogonally
             determine which "in range" Opens are closest in steps
                 NOT manhattan distance (pathfinding)
@@ -285,7 +281,7 @@ class Unit:
         for node in open_in_range_nodes:
             path = self.find_shortest_path(node, min_path and min_path.distance)
             
-            if path and isinstance(path, PathInfo):
+            if path and path.distance < min_path.distance:
                 min_path = path
     
     @classmethod
@@ -296,9 +292,13 @@ class Unit:
     def find_shortest_path(self, destination, current_shortest):
         '''
         Find shortest path from self to destination.
+        
+        If there are multiple shortest paths, select the one where the first step is earlier in reading order.
         '''
         
-        return self.parent.find_shortest_path(destination, current_shortest)
+        shortest_paths = self.parent.find_shortest_paths(destination, current_shortest)
+        
+        return min(shortest_paths, key=lambda x: tuple(a.position for a in x.directions))
     
     def attack_phase(self):
         '''

@@ -32,17 +32,17 @@ class load:
         inodes = day15.load._mapify(data)
         
         node = next(inodes)
-        assert isinstance(node, day15.Open)
+        assert isinstance(node, day15.Node)
         assert not node.unit
         assert node.position == Vector(0,1)
         
         node = next(inodes)
-        assert isinstance(node, day15.Open)
+        assert isinstance(node, day15.Node)
         assert isinstance(node.unit, day15.Elf)
         assert node.position == Vector(1,1)
         
         node = next(inodes)
-        assert isinstance(node, day15.Open)
+        assert isinstance(node, day15.Node)
         assert isinstance(node.unit, day15.Goblin)
         assert node.position == Vector(2,1)
 
@@ -58,7 +58,7 @@ class Map:
     def score(self, rounds, hit_pointses, expected):
         def inner():
             for i,hp in enumerate(hit_pointses):
-                node = day15.Open(Vector(i,0))
+                node = day15.Node(Vector(i,0))
                 unit = day15.Unit(node)
                 unit.hit_points = hp
                 
@@ -84,7 +84,7 @@ class Map:
         dead_units = set()
         
         for i,x in enumerate(unit_map):
-            nodes.append(day15.Open(Vector(i, 0)))
+            nodes.append(day15.Node(Vector(i, 0)))
             
             if x == 'E':
                 unit = day15.Elf(nodes[-1])
