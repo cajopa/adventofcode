@@ -83,6 +83,36 @@ class Map:
         self.adopt_nodes()
         self.link_nodes()
     
+    def __str__(self):
+        max_x = max(x.position.x for x in self.nodes)
+        max_y = max(x.position.y for x in self.nodes)
+        
+        indexed_nodes = self.indexed_nodes
+        
+        def inner():
+            for y in range(max_y + 1):
+                for x in range(max_x + 1):
+                    node = indexed_nodes[Vector(x,y)]
+                    
+                    if node:
+                        if node.unit:
+                            if isinstance(node.unit, Elf):
+                                yield 'E'
+                            elif isinstance(node.unit, Goblin):
+                                yield 'G'
+                        else:
+                            yield '\u00b7'
+                    else:
+                        yield '\u2588'
+                
+                yield '\n'
+        
+        return ''.join(inner())
+    
+    @property
+    def indexed_nodes(self):
+        return defaultdict(lambda: None, ((x.position, x) for x in self.nodes))
+    
     def adopt(self, node):
         node.parent = self
     
@@ -91,7 +121,7 @@ class Map:
             self.adopt(node)
     
     def link_nodes(self):
-        indexed_nodes = defaultdict(lambda: None, ((x.position, x) for x in self.nodes))
+        indexed_nodes = self.indexed_nodes
         
         for node in self.nodes:
             node.link(indexed_nodes)
@@ -144,13 +174,19 @@ class Node:
         
         self.neighborhood = None
     
+    def __repr__(self):
+        if self.unit:
+            return f'<{self.__class__.__name__} @{self.position} ({self.unit})>'
+        else:
+            return f'<{self.__class__.__name__} @{self.position}>'
+    
     def link(self, indexed_nodes):
         left = indexed_nodes[self.position + Vector(-1,0)]
         right = indexed_nodes[self.position + Vector(1,0)]
         up = indexed_nodes[self.position + Vector(0,-1)]
         down = indexed_nodes[self.position + Vector(0,1)]
         
-        self.neighborhood = {left, right, up, down}
+        self.neighborhood = {left, right, up, down} - {None}
     
     def distance_to(self, other):
         return (self.position - other.position).rect_magnitude
@@ -165,45 +201,44 @@ class Node:
         
         .return: type=list(PathInfo)
         '''
-        
         manhattan_distance = self.distance_to(destination)
         
         if manhattan_distance == 0:
-            return [cls.PathInfo(
+            return [self.PathInfo(
                 destination=destination,
-                distance=len(prefix) + 1,
-                directions=prefix + [destination]
+                distance=len(prefix),
+                directions=prefix
             )]
         elif current_shortest is None or len(prefix) + manhattan_distance < current_shortest:
             if manhattan_distance == 1:
                 return destination.find_shortest_paths(
                     destination,
                     current_shortest,
-                    prefix=prefix+[self],
+                    prefix=prefix+[destination],
                 )
             else:
-                prioritized_neighbors = sorted(self.neighborhood, key=lambda x: x.distance_to(destination))
+                prioritized_neighbors = sorted(self.neighborhood - set(prefix), key=lambda x: x.distance_to(destination))
                 
                 shortest_paths = []
                 
                 for node in prioritized_neighbors:
-                    exploratory_result = node.find_shortest_paths(
+                    exploratory_results = node.find_shortest_paths(
                         destination,
                         current_shortest,
-                        prefix=prefix+[self],
+                        prefix=prefix+[node],
                     )
                     
-                    if exploratory_result:
-                        if exploratory_result.distance == current_shortest:
-                            shortest_paths.extend(exploratory_result)
-                        elif exploratory_result.distance < current_shortest:
-                            current_shortest = exploratory_result.distance
-                            shortest_paths = [exploratory_result]
+                    if exploratory_results:
+                        if current_shortest is None or exploratory_results[0].distance < current_shortest:
+                            current_shortest = exploratory_results[0].distance
+                            shortest_paths = exploratory_results
+                        elif exploratory_results[0].distance == current_shortest:
+                            shortest_paths.extend(exploratory_results)
                 
                 if shortest_paths:
                     return shortest_paths
-        # else:
-        #     pass
+        else:
+            return None
 
 class Unit:
     IN_RANGE = object()
@@ -215,6 +250,9 @@ class Unit:
         
         self.hit_points = 200
         self.attack_power = 3
+    
+    def __repr__(self):
+        return f'<{self.__class__.__name__} HP:{self.hit_points}/200>'
     
     @property
     def position(self):
@@ -253,13 +291,13 @@ class Unit:
                 else, go to move phase
         '''
         
-        in_range_targets = [x.unit for x in self.parent.neighborhood if x and x.unit]
+        in_range_targets = [x.unit for x in self.parent.neighborhood if x.unit and not isinstance(x.unit, self.__class__)]
         
-        if in_range_targets:
+        if any(True for x in self.parent.neighborhood if x.unit and not isinstance(x.unit, self.__class__)):
             return self.IN_RANGE
         else:
             #find all potential targets
-            return [x.unit for x in self.parent.parent.nodes if x.unit and not isinstance(x, self.__class__)]
+            return [x for x in self.parent.parent.nodes if x.unit and not isinstance(x.unit, self.__class__)]
     
     def move_phase(self, potential_targets):
         '''
@@ -281,13 +319,13 @@ class Unit:
         for node in open_in_range_nodes:
             path = self.find_shortest_path(node, min_path and min_path.distance)
             
-            if path and path.distance < min_path.distance:
+            if not min_path or (path and path.distance < min_path.distance):
                 min_path = path
     
     @classmethod
     def _find_open_in_range(cls, targets):
         for target in targets:
-            yield from (node for node in target.neighborhood if node and not node.unit)
+            yield from (node for node in target.neighborhood if not node.unit)
     
     def find_shortest_path(self, destination, current_shortest):
         '''
@@ -298,7 +336,8 @@ class Unit:
         
         shortest_paths = self.parent.find_shortest_paths(destination, current_shortest)
         
-        return min(shortest_paths, key=lambda x: tuple(a.position for a in x.directions))
+        if shortest_paths:
+            return min(shortest_paths, key=lambda x: tuple(tuple(reversed(tuple(a.position))) for a in x.directions))
     
     def attack_phase(self):
         '''
@@ -312,7 +351,7 @@ class Unit:
                 on death, ceases to exist entirely (no map presence, no turns)
         '''
         
-        target = min((x.unit for x in self.parent.neighborhood if x and x.unit), key=lambda x: (x.hit_points, x.position))
+        target = min((x.unit for x in self.parent.neighborhood if x.unit), key=lambda x: (x.hit_points, tuple(reversed(tuple(x.position)))))
         
         self.attack(target)
 

@@ -6,12 +6,11 @@ from geometry import Vector
 import day15
 
 
-def _readall():
+def _findall():
     base_dir = 'input/15.test'
     
     for filename in os.listdir(base_dir):
-        with open(base_dir + '/' + filename, 'r') as f:
-            yield f.read()
+        yield base_dir + '/' + filename
 
 class load:
     def parse(self):
@@ -98,19 +97,19 @@ class Map:
         
         assert fixture.has_genocide_occurred(dead_units) == expected
 
-# @pytest.mark.parametrize('data,expected',zip(
-#     _readall(),
-#     [
-#         27730,
-#         36334,
-#         39514,
-#         27755,
-#         28944,
-#         18740,
-#     ]
-# ))
-# def part1(data, expected):
-#     assert day15.part1(data) == expected
+@pytest.mark.parametrize('data,expected',zip(
+    _findall(),
+    [
+        27730,
+        36334,
+        39514,
+        27755,
+        28944,
+        18740,
+    ]
+))
+def part1(data, expected):
+    assert day15.part1(data) == expected
 
 # @pytest.mark.parametrize('data,expected',[
 # ])
