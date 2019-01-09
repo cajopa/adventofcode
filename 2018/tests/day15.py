@@ -97,6 +97,27 @@ class Map:
         
         assert fixture.has_genocide_occurred(dead_units) == expected
 
+class Node:
+    class find_shortest_paths:
+        def finds_shortest(self):
+            pass
+        
+        def prefers_reading_order(self):
+            pass
+        
+        def finds_all_shortest(self):
+            pass
+
+class Unit:
+    '''
+    take_damage
+    evaluate_phase
+    _find_open_in_range
+    find_shortest_path
+    
+    need mock objects and ability to check that an exception occurred
+    '''
+
 @pytest.mark.parametrize('data,expected',zip(
     _findall(),
     [
