@@ -12,6 +12,8 @@ pytest-relaxed = "*"
 
 [packages]
 kids-cache = "*"
+pytest-mock = "*"
+pytest-relaxed = "*"
 
 [requires]
 python_version = "3.5"
