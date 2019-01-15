@@ -1,6 +1,7 @@
 #!/usr/bin/env pypy3
 
 from collections import defaultdict, namedtuple
+from functools import reduce
 
 from geometry import Vector
 from util import run_as_script
@@ -184,6 +185,9 @@ class Node:
         else:
             return f'<{self.__class__.__name__} @{self.position}>'
     
+    def __lt__(self, other):
+        return tuple(reversed(tuple(self.position))) < tuple(reversed(tuple(self.position)))
+    
     def link(self, indexed_nodes):
         left = indexed_nodes[self.position + Vector(-1,0)]
         right = indexed_nodes[self.position + Vector(1,0)]
@@ -195,12 +199,12 @@ class Node:
     def distance_to(self, other):
         return (self.position - other.position).rect_magnitude
     
-    def find_shortest_paths(self, destination, current_shortest, prefix=[]):
+    def find_shortest_paths(self, destination, target_length, prefix=[]):
         '''
         Uses recursive variation of A*, using manhattan distance as heuristic and pruning aid.
         
         .param.destination: type=Node
-        .param.current_shortest: type=int
+        .param.target_length: type=int
         .param.prefix: type=list(Node) #prior elements in the path
         
         .return: type=list(PathInfo)
@@ -210,10 +214,10 @@ class Node:
         
         if DEBUG:
             def inprint(indent, message):
-                indent_str = '    ' + '      ' * len(prefix) + '  ' * indent
+                indent_str = ' ' * (4 + 6*len(prefix) + 2*indent)
                 print(indent_str + message)
             
-            inprint(0, f'FSPs: src={self} dest={destination} c_s={current_shortest} pre={prefix}')
+            inprint(0, f'FSPs: src={self} dest={destination} c_s={target_length} pre={prefix}')
             inprint(1, f'dist={manhattan_distance}')
         
         if manhattan_distance == 0:
@@ -225,7 +229,7 @@ class Node:
                 distance=len(prefix),
                 directions=prefix
             )]
-        elif current_shortest is None or len(prefix) + manhattan_distance < current_shortest:
+        elif target_length is None or len(prefix) + manhattan_distance < target_length:
             if DEBUG:
                 inprint(1, 'reachable')
             
@@ -235,7 +239,7 @@ class Node:
                 
                 return destination.find_shortest_paths(
                     destination,
-                    current_shortest,
+                    target_length,
                     prefix=prefix+[destination],
                 )
             else:
@@ -250,37 +254,47 @@ class Node:
                 for node in prioritized_neighbors:
                     exploratory_results = node.find_shortest_paths(
                         destination,
-                        current_shortest,
+                        target_length,
                         prefix=prefix+[node],
                     )
+                    
                     if DEBUG:
                         inprint(4, f'exploratory_results={exploratory_results}')
                     
                     if exploratory_results:
-                        if current_shortest is None or exploratory_results[0].distance < current_shortest:
+                        min_distance = min(x.distance for x in exploratory_results)
+                        
+                        if target_length is None or min_distance < target_length:
                             if DEBUG:
-                                inprint(4, 'replacing shortest path(s)')
-                            current_shortest = exploratory_results[0].distance
-                            shortest_paths = exploratory_results
-                        elif exploratory_results[0].distance == current_shortest:
+                                inprint(5, 'replacing shortest path(s)')
+                            
+                            target_length = min_distance
+                            shortest_paths = [x for x in exploratory_results if x.distance == min_distance]
+                        elif min_distance == target_length:
                             if DEBUG:
-                                inprint(4, 'extending shortest path(s)')
-                            shortest_paths.extend(exploratory_results)
+                                inprint(5, 'extending shortest path(s)')
+                            
+                            shortest_paths.extend(x for x in exploratory_results if x.distance == min_distance)
                         else:
                             if DEBUG:
-                                inprint(4, 'discarding new paths')
+                                inprint(5, 'discarding new paths')
+                    else:
+                        if DEBUG:
+                            inprint(5, 'no new paths')
                 
                 if shortest_paths:
                     if DEBUG:
-                        inprint(1, f'returning paths: {shortest_paths}')
-                    return shortest_paths
+                        inprint(2, f'returning paths: {shortest_paths}')
+                else:
+                    if DEBUG:
+                        inprint(2, 'no shortest paths')
+                
+                return shortest_paths
         else:
             if DEBUG:
-                inprint(1, 'unreachable')
-        
-        if DEBUG:
-            inprint(1, 'found no paths')
-        return None
+                inprint(1, 'drifted too far')
+            
+            return []
 
 class Unit:
     IN_RANGE = object()
@@ -311,25 +325,39 @@ class Unit:
             
             raise Died(self)
     
+    def move(self, node):
+        self.parent = node
+        self.parent.unit = self
+    
     def take_turn(self):
         '''
-        A turn is evaluate, optional move (early term if none valid), attack if possible
+        A turn is:
+          - evaluate
+          - attack if possible (ends turn)
+          - move if possible (ends turn if impossible)
+          - attack if possible (ends turn)
         '''
         
         if DEBUG:
             print(f'taking turn: {self}')
         
-        attackable_nodes = self.evaluate_phase()
-        
-        if attackable_nodes is self.IN_RANGE:
+        try:
+            attackable_nodes = self.evaluate_phase()
+        except CanAttackNow:
             self.attack_phase()
         else:
-            self.move_phase(attackable_nodes)
+            try:
+                self.move_phase(attackable_nodes)
+            except CanAttackNow:
+                self.attack_phase()
+        
+        if DEBUG:
+            print('  # END OF TURN #')
     
     def evaluate_phase(self):
         '''
         Evaluate:
-            identify all possible targets (end of game if none)
+            identify all possible targets (end of turn if none)
             "in range": orthogonally adjacent
             Determine if already "in range"
                 if so, go to attack phase
@@ -344,7 +372,8 @@ class Unit:
         if any(True for x in self.parent.neighborhood if x.unit and not isinstance(x.unit, self.__class__)):
             if DEBUG:
                 print('    in range')
-            return self.IN_RANGE
+            
+            raise CanAttackNow
         else:
             if DEBUG:
                 to_return = [x for x in self.parent.parent.nodes if x.unit and not isinstance(x.unit, self.__class__)]
@@ -355,6 +384,9 @@ class Unit:
             else:
                 #find all potential targets
                 return [x for x in self.parent.parent.nodes if x.unit and not isinstance(x.unit, self.__class__)]
+        
+        if DEBUG:
+            print('    = END OF PHASE =')
     
     def move_phase(self, attackable_nodes):
         '''
@@ -369,17 +401,37 @@ class Unit:
                 if multiple shortest paths, prefer reading order (absolute)
         '''
         
-        print('  MOVE PHASE')
+        if DEBUG:
+            print('  MOVE PHASE')
         
         open_in_range_nodes = self._find_open_in_range(attackable_nodes)
         
-        min_path = None
+        if DEBUG:
+            print(f'    open and in range: {open_in_range_nodes}')
+        
+        try:
+            first_destination = next(open_in_range_nodes)
+        except StopIteration:
+            if DEBUG:
+                print('    cannot move')
+            
+            raise CannotMove
+        
+        min_path = self.find_shortest_path(first_destination, None)
         
         for node in open_in_range_nodes:
             path = self.find_shortest_path(node, min_path and min_path.distance)
             
             if not min_path or (path and path.distance < min_path.distance):
                 min_path = path
+        
+        if DEBUG:
+            print(f'    min_path: {min_path}')
+            print(f'    moving to {min_path[0]}')
+        
+        self.move(min_path[0])
+        
+        print('    = END OF PHASE =')
     
     @classmethod
     def _find_open_in_range(cls, targets):
@@ -395,8 +447,17 @@ class Unit:
         
         shortest_paths = self.parent.find_shortest_paths(destination, current_shortest)
         
+        if not shortest_paths:
+            if DEBUG:
+                print('no shortest paths: cannot move')
+            
+            return None
+        
+        if DEBUG:
+            print(f'shortest paths from {self}@{self.position} to {destination}: {shortest_paths}')
+        
         if shortest_paths:
-            return min(shortest_paths, key=lambda x: tuple(tuple(reversed(tuple(a.position))) for a in x.directions))
+            return min(shortest_paths, key=lambda x: x.directions)
     
     def attack_phase(self):
         '''
@@ -410,11 +471,18 @@ class Unit:
                 on death, ceases to exist entirely (no map presence, no turns)
         '''
         
-        print('  ATTACK PHASE')
+        if DEBUG:
+            print('  ATTACK PHASE')
         
         target = min((x.unit for x in self.parent.neighborhood if x.unit), key=lambda x: (x.hit_points, tuple(reversed(tuple(x.position)))))
         
+        if DEBUG:
+            print(f'    attacking {target}@{target.position}')
+        
         self.attack(target)
+        
+        if DEBUG:
+            print('    = END OF PHASE =')
 
 class Elf(Unit):
     pass
@@ -427,11 +495,13 @@ class Died(Exception):
         self.unit = unit
         super().__init__()
 
-class Genocide(Exception):
-    pass
+class Genocide(Exception): pass
 
-class NoTargets(Exception):
-    pass
+class NoTargets(Exception): pass
+
+class CanAttackNow(Exception): pass
+
+class CannotMove(Exception): pass
 
 
 if __name__=='__main__':

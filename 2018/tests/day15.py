@@ -114,6 +114,7 @@ class Unit:
     evaluate_phase
     _find_open_in_range
     find_shortest_path
+    _shorter_path
     
     need mock objects and ability to check that an exception occurred
     '''
