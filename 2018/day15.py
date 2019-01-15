@@ -1,13 +1,25 @@
 #!/usr/bin/env pypy3
 
 from collections import defaultdict, namedtuple
-from functools import reduce
+
+import structlog
 
 from geometry import Vector
+from loggy import IndentLogger, LogLevel, Format, TaggedWrapper
 from util import run_as_script
 
 
-DEBUG = False
+structlog.configure(
+    logger_factory=IndentLogger.factory,
+    wrapper_class=TaggedWrapper,
+    processors=[
+        LogLevel(),
+        Format('{event}')
+    ],
+    cache_logger_on_first_use=True
+)
+
+logger = structlog.get_logger()
 
 
 class load:
@@ -210,91 +222,82 @@ class Node:
         .return: type=list(PathInfo)
         '''
         
-        manhattan_distance = self.distance_to(destination)
+        logger.debug(f'FSPs: src={self} dest={destination} c_s={target_length} pre={prefix}')
         
-        if DEBUG:
-            def inprint(indent, message):
-                indent_str = ' ' * (4 + 6*len(prefix) + 2*indent)
-                print(indent_str + message)
-            
-            inprint(0, f'FSPs: src={self} dest={destination} c_s={target_length} pre={prefix}')
-            inprint(1, f'dist={manhattan_distance}')
+        with logger.indent():
+            manhattan_distance = self.distance_to(destination)
         
-        if manhattan_distance == 0:
-            if DEBUG:
-                inprint(1, 'returning PathInfo')
+            logger.debug(f'dist={manhattan_distance}')
             
-            return [self.PathInfo(
-                destination=destination,
-                distance=len(prefix),
-                directions=prefix
-            )]
-        elif target_length is None or len(prefix) + manhattan_distance < target_length:
-            if DEBUG:
-                inprint(1, 'reachable')
-            
-            if manhattan_distance == 1:
-                if DEBUG:
-                    inprint(2, 'in range')
-                
-                return destination.find_shortest_paths(
-                    destination,
-                    target_length,
-                    prefix=prefix+[destination],
-                )
-            else:
-                prioritized_neighbors = sorted(self.neighborhood - set(prefix), key=lambda x: x.distance_to(destination))
-                
-                if DEBUG:
-                    inprint(2, 'out of range')
-                    inprint(3, f'prioritized_neighbors={prioritized_neighbors}')
-                
-                shortest_paths = []
-                
-                for node in prioritized_neighbors:
-                    exploratory_results = node.find_shortest_paths(
-                        destination,
-                        target_length,
-                        prefix=prefix+[node],
-                    )
+            with logger.indent():
+                if manhattan_distance == 0:
+                    logger.debug('we are here; returning PathInfo')
                     
-                    if DEBUG:
-                        inprint(4, f'exploratory_results={exploratory_results}')
+                    return [self.PathInfo(
+                        destination=destination,
+                        distance=len(prefix),
+                        directions=prefix
+                    )]
+                elif target_length is None or len(prefix) + manhattan_distance < target_length:
+                    logger.debug('we can still get there')
                     
-                    if exploratory_results:
-                        min_distance = min(x.distance for x in exploratory_results)
-                        
-                        if target_length is None or min_distance < target_length:
-                            if DEBUG:
-                                inprint(5, 'replacing shortest path(s)')
+                    with logger.indent():
+                        if manhattan_distance == 1:
+                            logger.debug('the target is adjacent')
                             
-                            target_length = min_distance
-                            shortest_paths = [x for x in exploratory_results if x.distance == min_distance]
-                        elif min_distance == target_length:
-                            if DEBUG:
-                                inprint(5, 'extending shortest path(s)')
-                            
-                            shortest_paths.extend(x for x in exploratory_results if x.distance == min_distance)
+                            return destination.find_shortest_paths(
+                                destination,
+                                target_length,
+                                prefix=prefix+[destination],
+                            )
                         else:
-                            if DEBUG:
-                                inprint(5, 'discarding new paths')
-                    else:
-                        if DEBUG:
-                            inprint(5, 'no new paths')
-                
-                if shortest_paths:
-                    if DEBUG:
-                        inprint(2, f'returning paths: {shortest_paths}')
+                            logger.debug('out of range')
+                            
+                            with logger.indent():
+                                prioritized_neighbors = sorted(self.neighborhood - set(prefix), key=lambda x: x.distance_to(destination))
+                                
+                                logger.debug(f'prioritized_neighbors={prioritized_neighbors}')
+                                
+                                shortest_paths = []
+                                
+                                with logger.indent():
+                                    for node in prioritized_neighbors:
+                                        exploratory_results = node.find_shortest_paths(
+                                            destination,
+                                            target_length,
+                                            prefix=prefix+[node],
+                                        )
+                                        
+                                        logger.debug(f'exploratory_results={exploratory_results}')
+                                        
+                                        with logger.indent():
+                                            if exploratory_results:
+                                                min_distance = min(x.distance for x in exploratory_results)
+                                                
+                                                if target_length is None or min_distance < target_length:
+                                                    logger.debug('replacing shortest path(s)')
+                                                    
+                                                    target_length = min_distance
+                                                    shortest_paths = [x for x in exploratory_results if x.distance == min_distance]
+                                                elif min_distance == target_length:
+                                                    logger.debug('extending shortest path(s)')
+                                                    
+                                                    shortest_paths.extend(x for x in exploratory_results if x.distance == min_distance)
+                                                else:
+                                                    logger.debug('discarding new paths')
+                                            else:
+                                                logger.debug('no new paths')
+                                
+                                if shortest_paths:
+                                    logger.debug(f'returning paths: {shortest_paths}')
+                                else:
+                                    logger.debug('no shortest paths')
+                                
+                                return shortest_paths
                 else:
-                    if DEBUG:
-                        inprint(2, 'no shortest paths')
-                
-                return shortest_paths
-        else:
-            if DEBUG:
-                inprint(1, 'drifted too far')
-            
-            return []
+                    logger.debug('drifted too far')
+                    
+                    return []
 
 class Unit:
     IN_RANGE = object()
@@ -338,21 +341,20 @@ class Unit:
           - attack if possible (ends turn)
         '''
         
-        if DEBUG:
-            print(f'taking turn: {self}')
+        logger.debug(f'taking turn: {self}')
         
-        try:
-            attackable_nodes = self.evaluate_phase()
-        except CanAttackNow:
-            self.attack_phase()
-        else:
+        with logger.indent():
             try:
-                self.move_phase(attackable_nodes)
+                attackable_nodes = self.evaluate_phase()
             except CanAttackNow:
                 self.attack_phase()
-        
-        if DEBUG:
-            print('  # END OF TURN #')
+            else:
+                try:
+                    self.move_phase(attackable_nodes)
+                except CanAttackNow:
+                    self.attack_phase()
+            
+            logger.debug('# END OF TURN #')
     
     def evaluate_phase(self):
         '''
@@ -364,29 +366,24 @@ class Unit:
                 else, go to move phase
         '''
         
-        if DEBUG:
-            print('  EVALUATE PHASE')
+        logger.debug('EVALUATE PHASE')
         
-        in_range_targets = [x.unit for x in self.parent.neighborhood if x.unit and not isinstance(x.unit, self.__class__)]
-        
-        if any(True for x in self.parent.neighborhood if x.unit and not isinstance(x.unit, self.__class__)):
-            if DEBUG:
-                print('    in range')
+        with logger.indent():
+            in_range_targets = [x.unit for x in self.parent.neighborhood if x.unit and not isinstance(x.unit, self.__class__)]
             
-            raise CanAttackNow
-        else:
-            if DEBUG:
-                to_return = [x for x in self.parent.parent.nodes if x.unit and not isinstance(x.unit, self.__class__)]
+            if any(True for x in self.parent.neighborhood if x.unit and not isinstance(x.unit, self.__class__)):
+                logger.debug('in range')
                 
-                print(f'    potential targets: {to_return}')
-                
-                return to_return
+                raise CanAttackNow
             else:
                 #find all potential targets
-                return [x for x in self.parent.parent.nodes if x.unit and not isinstance(x.unit, self.__class__)]
-        
-        if DEBUG:
-            print('    = END OF PHASE =')
+                to_return = [x for x in self.parent.parent.nodes if x.unit and not isinstance(x.unit, self.__class__)]
+                
+                logger.debug(f'potential targets: {to_return}')
+                
+                return to_return
+            
+            logger.debug('= END OF PHASE =')
     
     def move_phase(self, attackable_nodes):
         '''
@@ -401,37 +398,34 @@ class Unit:
                 if multiple shortest paths, prefer reading order (absolute)
         '''
         
-        if DEBUG:
-            print('  MOVE PHASE')
+        logger.debug('MOVE PHASE')
         
-        open_in_range_nodes = self._find_open_in_range(attackable_nodes)
-        
-        if DEBUG:
-            print(f'    open and in range: {open_in_range_nodes}')
-        
-        try:
-            first_destination = next(open_in_range_nodes)
-        except StopIteration:
-            if DEBUG:
-                print('    cannot move')
+        with logger.indent():
+            open_in_range_nodes = self._find_open_in_range(attackable_nodes)
             
-            raise CannotMove
-        
-        min_path = self.find_shortest_path(first_destination, None)
-        
-        for node in open_in_range_nodes:
-            path = self.find_shortest_path(node, min_path and min_path.distance)
+            logger.debug(f'open and in range: {open_in_range_nodes}')
             
-            if not min_path or (path and path.distance < min_path.distance):
-                min_path = path
-        
-        if DEBUG:
-            print(f'    min_path: {min_path}')
-            print(f'    moving to {min_path[0]}')
-        
-        self.move(min_path[0])
-        
-        print('    = END OF PHASE =')
+            try:
+                first_destination = next(open_in_range_nodes)
+            except StopIteration:
+                logger.debug('cannot move')
+                
+                raise CannotMove
+            
+            min_path = self.find_shortest_path(first_destination, None)
+            
+            for node in open_in_range_nodes:
+                path = self.find_shortest_path(node, min_path and min_path.distance)
+                
+                if not min_path or (path and path.distance < min_path.distance):
+                    min_path = path
+            
+            logger.debug(f'min_path: {min_path}')
+            logger.debug(f'moving to {min_path[0]}')
+            
+            self.move(min_path[0])
+            
+            logger.debug('= END OF PHASE =')
     
     @classmethod
     def _find_open_in_range(cls, targets):
@@ -448,13 +442,11 @@ class Unit:
         shortest_paths = self.parent.find_shortest_paths(destination, current_shortest)
         
         if not shortest_paths:
-            if DEBUG:
-                print('no shortest paths: cannot move')
+            logger.debug('no shortest paths: cannot move')
             
             return None
         
-        if DEBUG:
-            print(f'shortest paths from {self}@{self.position} to {destination}: {shortest_paths}')
+        logger.debug(f'shortest paths from {self}@{self.position} to {destination}: {shortest_paths}')
         
         if shortest_paths:
             return min(shortest_paths, key=lambda x: x.directions)
@@ -471,18 +463,16 @@ class Unit:
                 on death, ceases to exist entirely (no map presence, no turns)
         '''
         
-        if DEBUG:
-            print('  ATTACK PHASE')
+        logger.debug('ATTACK PHASE')
         
-        target = min((x.unit for x in self.parent.neighborhood if x.unit), key=lambda x: (x.hit_points, tuple(reversed(tuple(x.position)))))
-        
-        if DEBUG:
-            print(f'    attacking {target}@{target.position}')
-        
-        self.attack(target)
-        
-        if DEBUG:
-            print('    = END OF PHASE =')
+        with logger.indent():
+            target = min((x.unit for x in self.parent.neighborhood if x.unit), key=lambda x: (x.hit_points, tuple(reversed(tuple(x.position)))))
+            
+            logger.debug(f'attacking {target}@{target.position}')
+            
+            self.attack(target)
+            
+            logger.debug('= END OF PHASE =')
 
 class Elf(Unit):
     pass
