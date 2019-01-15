@@ -3,6 +3,9 @@ import argparse
 import sys
 
 import pytest
+import structlog
+
+import loggy
 
 
 def run_as_script(day, part1, part2):
@@ -24,6 +27,13 @@ def run_as_script(day, part1, part2):
     
     if args.debug:
         function.__globals__['DEBUG'] = True
+        
+        try:
+            logger = function.__globals__['logger']
+            
+            function.__globals__['logger'] = logger.bind(level=loggy.LogLevel.LEVELS.DEBUG)
+        except (KeyError, AttributeError, StopIteration):
+            pass
     
     if args.test:
         pytest_args = ['--pyargs', f'tests.day{day}']

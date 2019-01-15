@@ -14,6 +14,7 @@ pytest-relaxed = "*"
 kids-cache = "*"
 pytest-mock = "*"
 pytest-relaxed = "*"
+structlog = "*"
 
 [requires]
 python_version = "3.5"
