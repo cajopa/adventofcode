@@ -140,34 +140,55 @@ class Map:
             node.link(indexed_nodes)
     
     def run_round(self):
-        #positions of units will likely change during the round, so save order now
-        units_in_order = list(sorted((x.unit for x in self.nodes if x.unit), key=lambda x: tuple(reversed(tuple(x.position)))))
-        dead_units = set()
+        logger.debug('*** STARTING ROUND ***')
         
-        for unit in units_in_order:
-            if self.has_genocide_occurred(dead_units):
-                raise Genocide
+        with logger.indent():
+            #positions of units will likely change during the round, so save order now
+            units_in_order = list(sorted((x.unit for x in self.nodes if x.unit), key=lambda x: tuple(reversed(tuple(x.position)))))
+            dead_units = set()
             
-            if unit not in dead_units:
-                try:
-                    unit.take_turn()
-                except Died as e:
-                    dead_units.add(e.unit)
-        else:
-            raise NoTargets
-        
-        print(self)
-        print(' '.join(map(str, (x.unit.hit_points for x in self.nodes if x.unit))))
+            logger.debug(f'units in order: {units_in_order}')
+            
+            if units_in_order:
+                for unit in units_in_order:
+                    if self.has_genocide_occurred(dead_units):
+                        raise Genocide
+                    
+                    if unit not in dead_units:
+                        try:
+                            unit.take_turn()
+                        except Died as e:
+                            logger.debug(f'{e.unit}@{e.unit.position} died')
+                            dead_units.add(e.unit)
+            else:
+                raise NoTargets
+            
+            logger.debug(f'burying {len(dead_units)} units')
+            for unit in dead_units:
+                unit.die()
+            
+            logger.debug('*** ENDING ROUND ***')
     
     def run_until_genocide(self):
-        full_rounds = 0
+        logger.debug('running until genocide')
         
-        try:
-            while True:
-                self.run_round()
-                full_rounds += 1
-        except (Genocide, NoTargets):
-            print(f'full rounds: {full_rounds}')
+        with logger.indent():
+            full_rounds = 0
+            
+            try:
+                while True:
+                    self.run_round()
+                    
+                    full_rounds += 1
+                    
+                    logger.debug(f'finished {full_rounds} full rounds')
+            except Genocide:
+                logger.debug('-~ GENOCIDE ~-')
+            except NoTargets:
+                logger.debug('-~ CEASE FIRE ~-')
+            
+            logger.debug(f'full rounds: {full_rounds}')
+            
             return self.score(full_rounds)
     
     def score(self, full_rounds):
@@ -332,6 +353,9 @@ class Unit:
         self.parent = node
         self.parent.unit = self
     
+    def die(self):
+        self.parent.unit = None
+    
     def take_turn(self):
         '''
         A turn is:
@@ -341,7 +365,7 @@ class Unit:
           - attack if possible (ends turn)
         '''
         
-        logger.debug(f'taking turn: {self}')
+        logger.debug(f'taking turn: {self}@{self.position}')
         
         with logger.indent():
             try:
@@ -417,13 +441,17 @@ class Unit:
             for node in open_in_range_nodes:
                 path = self.find_shortest_path(node, min_path and min_path.distance)
                 
-                if not min_path or (path and path.distance < min_path.distance):
-                    min_path = path
+                if not min_path or path:
+                    if path.distance == min_path.distance:
+                        if path.directions < min_path.directions:
+                            min_path = path
+                    elif path.distance < min_path.distance:
+                        min_path = path
             
             logger.debug(f'min_path: {min_path}')
-            logger.debug(f'moving to {min_path[0]}')
+            logger.debug(f'moving to {min_path.directions[0]}')
             
-            self.move(min_path[0])
+            self.move(min_path.directions[0])
             
             logger.debug('= END OF PHASE =')
     
@@ -480,18 +508,21 @@ class Elf(Unit):
 class Goblin(Unit):
     pass
 
-class Died(Exception):
+### NOTE: derives from BaseException because they're not actual errors
+class Signal(BaseException): pass
+
+class Died(Signal):
     def __init__(self, unit):
         self.unit = unit
         super().__init__()
 
-class Genocide(Exception): pass
+class Genocide(Signal): pass
 
-class NoTargets(Exception): pass
+class NoTargets(Signal): pass
 
-class CanAttackNow(Exception): pass
+class CanAttackNow(Signal): pass
 
-class CannotMove(Exception): pass
+class CannotMove(Signal): pass
 
 
 if __name__=='__main__':
